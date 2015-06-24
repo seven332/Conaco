@@ -16,4 +16,4 @@
 #   public *;
 #}
 
--dontwarn com.squareup.okhttp.**
+-dontwarn okio.**
