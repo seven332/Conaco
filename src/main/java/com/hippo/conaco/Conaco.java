@@ -1,6 +1,5 @@
 package com.hippo.conaco;
 
-import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Process;
@@ -63,9 +62,9 @@ public class Conaco {
     public void load(Unikery unikery, String key, String url) {
         cancel(unikery);
 
-        Bitmap bitmap = mCache.getFromMemory(key);
-        if (bitmap != null) {
-            unikery.setBitmap(bitmap, Source.MEMORY);
+        BitmapHolder bitmapHolder = mCache.getFromMemory(key);
+        if (bitmapHolder != null) {
+            unikery.setBitmap(bitmapHolder, Source.MEMORY);
         } else {
             // Miss in memory cache
             // Set null drawable first
@@ -108,7 +107,7 @@ public class Conaco {
         NON_MEMORY
     }
 
-    private class LoadTask extends AsyncTask<Void, Void, Bitmap> {
+    private class LoadTask extends AsyncTask<Void, Void, BitmapHolder> {
 
         private int mId;
         private WeakReference<Unikery> mUnikeryWeakReference;
@@ -130,9 +129,9 @@ public class Conaco {
         }
 
         @Override
-        protected Bitmap doInBackground(Void... params) {
+        protected BitmapHolder doInBackground(Void... params) {
             String key = mKey;
-            Bitmap bitmap;
+            BitmapHolder bitmapHolder;
 
             // Is the task necessary
             if (!isNecessary()) {
@@ -140,12 +139,12 @@ public class Conaco {
             }
 
             // Get bitmap from disk
-            bitmap = mCache.getFromDisk(key);
+            bitmapHolder = mCache.getFromDisk(key);
 
-            if (bitmap != null) {
+            if (bitmapHolder != null) {
                 // Put it to memory
-                mCache.putToMemory(key, bitmap);
-                return bitmap;
+                mCache.putToMemory(key, bitmapHolder);
+                return bitmapHolder;
             } else {
                 // Is the task necessary
                 if (!isNecessary()) {
@@ -167,13 +166,13 @@ public class Conaco {
                     mCache.putRawToDisk(key, is);
                     Utils.closeQuietly(is);
                     // Get bitmap from disk cache
-                    bitmap = mCache.getFromDisk(key);
+                    bitmapHolder = mCache.getFromDisk(key);
 
-                    if (bitmap != null) {
+                    if (bitmapHolder != null) {
                         // Put it to memory
-                        mCache.putToMemory(key, bitmap);
+                        mCache.putToMemory(key, bitmapHolder);
                     }
-                    return bitmap;
+                    return bitmapHolder;
                 } catch (IOException e) {
                     // Cancel or get trouble
                     return null;
@@ -182,7 +181,7 @@ public class Conaco {
         }
 
         @Override
-        protected void onPostExecute(Bitmap result) {
+        protected void onPostExecute(BitmapHolder result) {
             if (!mStop) {
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null) {
