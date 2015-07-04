@@ -88,6 +88,7 @@ public class Conaco {
         if (id != Unikery.INVAILD_ID) {
             LoadTask loadTask = mLoadTaskMap.get(id);
             if (loadTask != null) {
+                unikery.onCancel();
                 AsyncTask.Status status = loadTask.getStatus();
                 if (status == AsyncTask.Status.PENDING) {
                     // The task is pending
