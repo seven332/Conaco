@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
 import com.hippo.beerbelly.BeerBelly;
+import com.hippo.beerbelly.SimpleDiskCache;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -41,7 +42,7 @@ class BitmapCache extends BeerBelly<BitmapHolder> {
     }
 
     @Override
-    protected BitmapHolder read(InputStreamHelper ish) {
+    protected BitmapHolder read(SimpleDiskCache.InputStreamHelper ish) {
         final BitmapFactory.Options options = new BitmapFactory.Options();
 
         options.inJustDecodeBounds = true;
