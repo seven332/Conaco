@@ -1,3 +1,19 @@
+/*
+ * Copyright 2015 Hippo Seven
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
@@ -5,20 +21,17 @@ import android.os.AsyncTask;
 import android.os.Process;
 
 import com.hippo.beerbelly.BeerBelly;
+import com.hippo.conaco.util.FakeBlockingQueue;
 import com.hippo.conaco.util.IntIdGenerator;
 import com.hippo.conaco.util.PriorityThreadFactory;
 import com.hippo.conaco.util.SafeSparseArray;
-import com.hippo.conaco.util.Utils;
-import com.squareup.okhttp.Call;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
+import com.hippo.httpclient.HttpClient;
+import com.hippo.httpclient.HttpRequest;
+import com.hippo.httpclient.HttpResponse;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +42,7 @@ public class Conaco {
     private static final String TAG = Conaco.class.getSimpleName();
 
     private BitmapCache mCache;
-    private OkHttpClient mHttpClient;
+    private HttpClient mHttpClient;
 
     private SafeSparseArray<LoadTask> mLoadTaskMap;
 
@@ -50,7 +63,7 @@ public class Conaco {
 
         mLoadTaskMap = new SafeSparseArray<>();
 
-        BlockingQueue<Runnable> requestWorkQueue = new LinkedBlockingQueue<>();
+        BlockingQueue<Runnable> requestWorkQueue = new FakeBlockingQueue<>();
         ThreadFactory threadFactory = new PriorityThreadFactory(TAG,
                 Process.THREAD_PRIORITY_BACKGROUND);
         mRequestThreadPool = new ThreadPoolExecutor(3, 3,
@@ -115,7 +128,7 @@ public class Conaco {
         private String mKey;
         private String mUrl;
 
-        private Call mCall;
+        private HttpRequest mRequest;
         private boolean mStop;
 
         public LoadTask(int id, Unikery unikery, String key, String url) {
@@ -153,30 +166,30 @@ public class Conaco {
                 }
 
                 // Load it from internet
-                Request request = new Request.Builder()
-                        .get()
-                        .url(mUrl)
-                        .build();
-                Call call = mHttpClient.newCall(request);
-                mCall = call;
+                mRequest = new HttpRequest();
+                mRequest.setUrl(mUrl);
 
                 try {
-                    Response response = call.execute();
-                    InputStream is = response.body().byteStream();
+                    HttpResponse httpResponse = mHttpClient.execute(mRequest);
+                    InputStream is = httpResponse.getInputStream();
                     // Put stream itself to disk cache directly
-                    mCache.putRawToDisk(key, is);
-                    Utils.closeQuietly(is);
-                    // Get bitmap from disk cache
-                    bitmapHolder = mCache.getFromDisk(key);
+                    if (mCache.putRawToDisk(key, is)) {
+                        // Get bitmap from disk cache
+                        bitmapHolder = mCache.getFromDisk(key);
 
-                    if (bitmapHolder != null) {
-                        // Put it to memory
-                        mCache.putToMemory(key, bitmapHolder);
+                        if (bitmapHolder != null) {
+                            // Put it to memory
+                            mCache.putToMemory(key, bitmapHolder);
+                        }
+                        return bitmapHolder;
+                    } else {
+                        return null;
                     }
-                    return bitmapHolder;
-                } catch (IOException e) {
+                } catch (Exception e) {
                     // Cancel or get trouble
                     return null;
+                } finally {
+                    mRequest.disconnect();
                 }
             }
         }
@@ -201,8 +214,8 @@ public class Conaco {
 
         public void stop() {
             mStop = true;
-            if (mCall != null) {
-                mCall.cancel();
+            if (mRequest != null) {
+                mRequest.cancel();
             }
         }
     }
@@ -211,7 +224,7 @@ public class Conaco {
         /**
          * The client to get image from internet
          */
-        public OkHttpClient httpClient = null;
+        public HttpClient httpClient = null;
 
         @Override
         public void isVaild() throws IllegalStateException {
