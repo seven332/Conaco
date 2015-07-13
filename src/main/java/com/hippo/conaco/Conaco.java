@@ -21,17 +21,17 @@ import android.os.AsyncTask;
 import android.os.Process;
 
 import com.hippo.beerbelly.BeerBelly;
-import com.hippo.conaco.util.FakeBlockingQueue;
-import com.hippo.conaco.util.IntIdGenerator;
-import com.hippo.conaco.util.PriorityThreadFactory;
-import com.hippo.conaco.util.SafeSparseArray;
 import com.hippo.httpclient.HttpClient;
 import com.hippo.httpclient.HttpRequest;
 import com.hippo.httpclient.HttpResponse;
+import com.hippo.yorozuya.IdGenerator;
+import com.hippo.yorozuya.PriorityThreadFactory;
+import com.hippo.yorozuya.SafeSparseArray;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +48,7 @@ public class Conaco {
 
     private final ThreadPoolExecutor mRequestThreadPool;
 
-    private final IntIdGenerator mIdGenerator;
+    private final IdGenerator mIdGenerator;
 
     private Conaco(Builder builder) {
         BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
@@ -63,13 +63,13 @@ public class Conaco {
 
         mLoadTaskMap = new SafeSparseArray<>();
 
-        BlockingQueue<Runnable> requestWorkQueue = new FakeBlockingQueue<>();
+        BlockingQueue<Runnable> requestWorkQueue = new LinkedBlockingDeque<>();
         ThreadFactory threadFactory = new PriorityThreadFactory(TAG,
                 Process.THREAD_PRIORITY_BACKGROUND);
         mRequestThreadPool = new ThreadPoolExecutor(3, 3,
                 5L, TimeUnit.SECONDS, requestWorkQueue, threadFactory);
 
-        mIdGenerator = IntIdGenerator.create();
+        mIdGenerator = new IdGenerator();
     }
 
     public void load(Unikery unikery, String key, String url) {
