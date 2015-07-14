@@ -116,6 +116,22 @@ public class Conaco {
         }
     }
 
+    public void clearMemoryCache() {
+        mCache.clearMemory();
+    }
+
+    public void clearDiskCache() {
+        mCache.clearDisk();
+    }
+
+    public int memoryCacheSize() {
+        return mCache.memorySize();
+    }
+
+    public long diskCacheSize() {
+        return mCache.diskSize();
+    }
+
     public enum Source {
         MEMORY,
         NON_MEMORY
