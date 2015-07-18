@@ -18,9 +18,10 @@ package com.hippo.conaco;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.support.annotation.NonNull;
 
 import com.hippo.beerbelly.BeerBelly;
-import com.hippo.beerbelly.SimpleDiskCache;
+import com.hippo.yorozuya.io.InputStreamPipe;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,38 +59,41 @@ class BitmapCache extends BeerBelly<BitmapHolder> {
     }
 
     @Override
-    protected BitmapHolder read(SimpleDiskCache.InputStreamHelper ish) {
-        final BitmapFactory.Options options = new BitmapFactory.Options();
-
-        options.inJustDecodeBounds = true;
-
+    protected BitmapHolder read(@NonNull InputStreamPipe isPipe) {
         try {
-            InputStream is = ish.open();
+            final BitmapFactory.Options options = new BitmapFactory.Options();
+
+            isPipe.obtain();
+
+            options.inJustDecodeBounds = true;
+
+            InputStream is = isPipe.open();
             BitmapFactory.decodeStream(is, null, options);
-        } finally {
-            ish.close();
-        }
+            isPipe.close();
 
-        // Check out size
-        if (options.outWidth <= 0 || options.outHeight <= 0) {
-            return null;
-        }
+            // Check out size
+            if (options.outWidth <= 0 || options.outHeight <= 0) {
+                isPipe.release();
+                return null;
+            }
 
-        options.inJustDecodeBounds = false;
-        options.inMutable = true;
-        options.inSampleSize = 1;
-        options.inBitmap = mBitmapPool.getInBitmap(options);
+            options.inJustDecodeBounds = false;
+            options.inMutable = true;
+            options.inSampleSize = 1;
+            options.inBitmap = mBitmapPool.getInBitmap(options);
 
-        try {
-            InputStream is = ish.open();
+            is = isPipe.open();
             Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
             if (bitmap != null) {
                 return new BitmapHolder(bitmap);
             } else {
                 return null;
             }
+        } catch (Exception e) {
+            return null;
         } finally {
-            ish.close();
+            isPipe.close();
+            isPipe.release();
         }
     }
 
