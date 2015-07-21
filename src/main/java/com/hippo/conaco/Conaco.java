@@ -231,7 +231,7 @@ public class Conaco {
         public void stop() {
             mStop = true;
             if (mRequest != null) {
-                mRequest.cancel();
+                mRequest.disconnect();
             }
         }
     }
