@@ -30,7 +30,9 @@ public class BitmapPool {
     private final Set<WeakReference<Bitmap>> mReusableBitmapSet = new LinkedHashSet<>();
 
     public synchronized void addReusableBitmap(Bitmap bitmap) {
-        mReusableBitmapSet.add(new WeakReference<>(bitmap));
+        if (bitmap != null) {
+            mReusableBitmapSet.add(new WeakReference<>(bitmap));
+        }
     }
 
     public synchronized Bitmap getInBitmap(BitmapFactory.Options options) {
