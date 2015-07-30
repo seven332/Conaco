@@ -55,6 +55,26 @@ public class BitmapPool {
         return null;
     }
 
+    public synchronized Bitmap getBitmap(int width, int height) {
+        final Iterator<WeakReference<Bitmap>> iterator = mReusableBitmapSet.iterator();
+        Bitmap item;
+        while (iterator.hasNext()) {
+            item = iterator.next().get();
+            if (item != null && item.isMutable()) {
+                if (item.getWidth() == width && item.getHeight() == height) {
+                    // Remove from reusable set so it can't be used again.
+                    iterator.remove();
+                    return item;
+                }
+            } else {
+                // Remove from the set if the reference has been cleared or
+                // it can't be used.
+                iterator.remove();
+            }
+        }
+        return null;
+    }
+
     private static boolean canUseForInBitmap(
             Bitmap candidate, BitmapFactory.Options targetOptions) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
