@@ -183,9 +183,9 @@ public class Conaco {
 
                 // Load it from internet
                 mRequest = new HttpRequest();
-                mRequest.setUrl(mUrl);
 
                 try {
+                    mRequest.setUrl(mUrl);
                     HttpResponse httpResponse = mHttpClient.execute(mRequest);
                     InputStream is = httpResponse.getInputStream();
                     // Put stream itself to disk cache directly
