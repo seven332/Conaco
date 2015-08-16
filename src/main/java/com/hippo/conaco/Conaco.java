@@ -24,7 +24,7 @@ import com.hippo.beerbelly.BeerBelly;
 import com.hippo.httpclient.HttpClient;
 import com.hippo.httpclient.HttpRequest;
 import com.hippo.httpclient.HttpResponse;
-import com.hippo.yorozuya.IdGenerator;
+import com.hippo.yorozuya.IdIntGenerator;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SafeSparseArray;
 
@@ -48,7 +48,7 @@ public class Conaco {
 
     private final ThreadPoolExecutor mRequestThreadPool;
 
-    private final IdGenerator mIdGenerator;
+    private final IdIntGenerator mIdGenerator;
 
     private Conaco(Builder builder) {
         BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
@@ -69,7 +69,7 @@ public class Conaco {
         mRequestThreadPool = new ThreadPoolExecutor(3, 3,
                 5L, TimeUnit.SECONDS, requestWorkQueue, threadFactory);
 
-        mIdGenerator = new IdGenerator();
+        mIdGenerator = new IdIntGenerator();
     }
 
     public void load(Unikery unikery, String key, String url) {

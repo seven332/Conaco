@@ -18,11 +18,11 @@ package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
 
-import com.hippo.yorozuya.IdGenerator;
+import com.hippo.yorozuya.IdIntGenerator;
 
 public interface Unikery {
 
-    int INVAILD_ID = IdGenerator.INVAILD_ID;
+    int INVAILD_ID = IdIntGenerator.INVAILD_ID;
 
     void setBitmap(BitmapHolder bitmapHolder, Conaco.Source source);
 
