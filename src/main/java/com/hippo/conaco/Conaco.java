@@ -17,22 +17,18 @@
 package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
-import android.os.AsyncTask;
 import android.os.Process;
+import android.support.annotation.NonNull;
 
 import com.hippo.beerbelly.BeerBelly;
 import com.hippo.httpclient.HttpClient;
-import com.hippo.httpclient.HttpRequest;
-import com.hippo.httpclient.HttpResponse;
 import com.hippo.yorozuya.IdIntGenerator;
+import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SafeSparseArray;
+import com.hippo.yorozuya.SerialThreadExecutor;
 
-import java.io.InputStream;
-import java.lang.ref.WeakReference;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -41,78 +37,107 @@ public class Conaco {
 
     private static final String TAG = Conaco.class.getSimpleName();
 
-    private BitmapCache mCache;
+    private DrawableHelper mHelper;
+    private DrawableCache mCache;
     private HttpClient mHttpClient;
 
-    private SafeSparseArray<LoadTask> mLoadTaskMap;
+    private SafeSparseArray<ConacoTask> mLoadTaskMap;
 
-    private final ThreadPoolExecutor mRequestThreadPool;
+    private final SerialThreadExecutor mDiskTasExecutor;
+    private final ThreadPoolExecutor mNetworkExecutor;
 
     private final IdIntGenerator mIdGenerator;
 
     private Conaco(Builder builder) {
+        mHelper = builder.drawableHelper;
+        if (mHelper == null) {
+            mHelper = new BitmapDrawableHelper();
+        }
+
         BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
         beerBellyParams.hasMemoryCache = builder.hasMemoryCache;
         beerBellyParams.memoryCacheMaxSize = builder.memoryCacheMaxSize;
         beerBellyParams.hasDiskCache = builder.hasDiskCache;
         beerBellyParams.diskCacheDir = builder.diskCacheDir;
         beerBellyParams.diskCacheMaxSize = builder.diskCacheMaxSize;
-        mCache = new BitmapCache(beerBellyParams);
+
+        mCache = new DrawableCache(beerBellyParams, mHelper);
 
         mHttpClient = builder.httpClient;
 
         mLoadTaskMap = new SafeSparseArray<>();
 
-        BlockingQueue<Runnable> requestWorkQueue = new LinkedBlockingDeque<>();
-        ThreadFactory threadFactory = new PriorityThreadFactory(TAG,
-                Process.THREAD_PRIORITY_BACKGROUND);
-        mRequestThreadPool = new ThreadPoolExecutor(3, 3,
-                5L, TimeUnit.SECONDS, requestWorkQueue, threadFactory);
+        mDiskTasExecutor = new SerialThreadExecutor(3000, new LinkedBlockingDeque<Runnable>(),
+                new PriorityThreadFactory("Conaco-Disk", Process.THREAD_PRIORITY_BACKGROUND));
+
+        mNetworkExecutor = new ThreadPoolExecutor(3, 3, 5L, TimeUnit.SECONDS,
+                new LinkedBlockingDeque<Runnable>(),
+                new PriorityThreadFactory("Conaco-Network", Process.THREAD_PRIORITY_BACKGROUND));
 
         mIdGenerator = new IdIntGenerator();
     }
 
-    public void load(Unikery unikery, String key, String url) {
+    public void load(@NonNull Unikery unikery, @NonNull String key, @NonNull String url) {
+        load(unikery, key, url, null);
+    }
+
+    /**
+     * @param key null for no cache, but container can't be null
+     */
+    public void load(@NonNull Unikery unikery, String key, @NonNull String url, DataContainer container) {
+        OSUtils.checkMainLoop();
+
+        // Check valid
+        if ((key == null && container == null) || (key != null && container != null)) {
+            throw new IllegalStateException("Only one in key and container can and must be null");
+        }
+
         cancel(unikery);
 
-        BitmapHolder bitmapHolder = mCache.getFromMemory(key);
-        if (bitmapHolder != null) {
-            unikery.setBitmap(bitmapHolder, Source.MEMORY);
-        } else {
-            // Miss in memory cache
-            // Set null drawable first
-            unikery.setDrawable(null);
+        DrawableHolder holder = null;
 
+        if (key != null) {
+            holder = mCache.getFromMemory(key);
+        }
+
+        if (holder != null) {
+            unikery.onGetDrawable(holder, Source.MEMORY);
+        } else {
             int id = mIdGenerator.nextId();
             unikery.setTaskId(id);
-            LoadTask loadTask = new LoadTask(id, unikery, key, url);
-            mLoadTaskMap.put(id, loadTask);
-            loadTask.executeOnExecutor(mRequestThreadPool);
+            ConacoTask task = new ConacoTask.Builder()
+                    .setId(id)
+                    .setUnikery(unikery)
+                    .setKey(key)
+                    .setUrl(url)
+                    .setDataContainer(container)
+                    .setHelper(mHelper)
+                    .setCache(mCache)
+                    .setHttpClient(mHttpClient)
+                    .setDiskExecutor(mDiskTasExecutor)
+                    .setNetworkExecutor(mNetworkExecutor)
+                    .build();
+            mLoadTaskMap.put(id, task);
+            task.start();
         }
     }
 
     public void load(Unikery unikery, Drawable drawable) {
+        OSUtils.checkMainLoop();
+
         cancel(unikery);
-        unikery.setDrawable(drawable);
+        unikery.onGetDrawable(new DrawableHolder(drawable), Source.USER);
     }
 
     public void cancel(Unikery unikery) {
+        OSUtils.checkMainLoop();
+
         int id = unikery.getTaskId();
         if (id != Unikery.INVAILD_ID) {
-            LoadTask loadTask = mLoadTaskMap.get(id);
-            if (loadTask != null) {
-                unikery.onCancel();
-                AsyncTask.Status status = loadTask.getStatus();
-                if (status == AsyncTask.Status.PENDING) {
-                    // The task is pending
-                    loadTask.cancel(false);
-                    mLoadTaskMap.remove(id);
-                    unikery.setTaskId(Unikery.INVAILD_ID);
-                } else if (status == AsyncTask.Status.RUNNING) {
-                    // The task is running
-                    loadTask.stop();
-                }
-            }
+            ConacoTask task = mLoadTaskMap.get(id);
+            task.stop();
+            mLoadTaskMap.remove(id);
+            unikery.setTaskId(Unikery.INVAILD_ID);
         }
     }
 
@@ -134,106 +159,9 @@ public class Conaco {
 
     public enum Source {
         MEMORY,
-        NON_MEMORY
-    }
-
-    private class LoadTask extends AsyncTask<Void, Void, BitmapHolder> {
-
-        private int mId;
-        private WeakReference<Unikery> mUnikeryWeakReference;
-        private String mKey;
-        private String mUrl;
-
-        private HttpRequest mRequest;
-        private boolean mStop;
-
-        public LoadTask(int id, Unikery unikery, String key, String url) {
-            mId = id;
-            mUnikeryWeakReference = new WeakReference<>(unikery);
-            mKey = key;
-            mUrl = url;
-        }
-
-        private boolean isNecessary() {
-            return !(mStop || mUnikeryWeakReference.get() == null);
-        }
-
-        @Override
-        protected BitmapHolder doInBackground(Void... params) {
-            String key = mKey;
-            BitmapHolder bitmapHolder;
-
-            // Is the task necessary
-            if (!isNecessary()) {
-                return null;
-            }
-
-            // Get bitmap from disk
-            bitmapHolder = mCache.getFromDisk(key);
-
-            if (bitmapHolder != null) {
-                // Put it to memory
-                mCache.putToMemory(key, bitmapHolder);
-                return bitmapHolder;
-            } else {
-                // Is the task necessary
-                if (!isNecessary()) {
-                    return null;
-                }
-
-                // Load it from internet
-                mRequest = new HttpRequest();
-
-                try {
-                    mRequest.setUrl(mUrl);
-                    HttpResponse httpResponse = mHttpClient.execute(mRequest);
-                    InputStream is = httpResponse.getInputStream();
-                    // Put stream itself to disk cache directly
-                    if (mCache.putRawToDisk(key, is)) {
-                        // Get bitmap from disk cache
-                        bitmapHolder = mCache.getFromDisk(key);
-
-                        if (bitmapHolder != null) {
-                            // Put it to memory
-                            mCache.putToMemory(key, bitmapHolder);
-                        }
-                        return bitmapHolder;
-                    } else {
-                        return null;
-                    }
-                } catch (Exception e) {
-                    // Cancel or get trouble
-                    return null;
-                } finally {
-                    mRequest.disconnect();
-                }
-            }
-        }
-
-        @Override
-        protected void onPostExecute(BitmapHolder result) {
-            if (!mStop) {
-                Unikery unikery = mUnikeryWeakReference.get();
-                if (unikery != null) {
-                    if (result != null) {
-                        unikery.setBitmap(result, Source.NON_MEMORY);
-                    } else {
-                        unikery.onFailure();
-                    }
-
-                    unikery.setTaskId(Unikery.INVAILD_ID);
-                }
-            }
-
-            mLoadTaskMap.remove(mId);
-        }
-
-        public void stop() {
-            mStop = true;
-            if (mRequest != null) {
-                mRequest.cancel();
-            }
-        }
+        DISK,
+        NETWORK,
+        USER
     }
 
     public static class Builder extends BeerBelly.BeerBellyParams {
@@ -241,6 +169,12 @@ public class Conaco {
          * The client to get image from internet
          */
         public HttpClient httpClient = null;
+
+        /**
+         * Decode, get size and others
+         */
+        public DrawableHelper drawableHelper = null;
+
 
         @Override
         public void isVaild() throws IllegalStateException {

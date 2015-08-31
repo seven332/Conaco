@@ -16,37 +16,35 @@
 
 package com.hippo.conaco;
 
-import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
-public class BitmapHolder {
+public class DrawableHolder {
 
-    private Bitmap mBitmap;
+    @NonNull
+    private final Drawable mDrawable;
 
     private int mReference;
 
-    public BitmapHolder(Bitmap bitmap) {
-        if (bitmap == null) {
-            throw new IllegalStateException("null bitmap can't initialize BitmapHolder");
-        }
-        mBitmap = bitmap;
+    public DrawableHolder(@NonNull Drawable drawable) {
+        mDrawable = drawable;
     }
 
-    public @NonNull Bitmap getBitmap() {
-        return mBitmap;
+    public @NonNull Drawable getDrawable() {
+        return mDrawable;
     }
 
-    public void obtain() {
+    public synchronized void obtain() {
         mReference++;
     }
 
-    public void release() {
+    public synchronized void release() {
         if (mReference != 0) {
             mReference--;
         }
     }
 
-    public boolean isFree() {
+    public synchronized boolean isFree() {
         return mReference == 0;
     }
 }

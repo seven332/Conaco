@@ -18,48 +18,20 @@ package com.hippo.conaco;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
-import com.hippo.beerbelly.BeerBelly;
 import com.hippo.yorozuya.io.InputStreamPipe;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 
-class BitmapCache extends BeerBelly<BitmapHolder> {
+public class BitmapDrawableHelper extends DrawableHelper {
 
-    /**
-     * Compression settings when writing images to disk cache
-     */
-    private static final Bitmap.CompressFormat COMPRESS_FORMAT = Bitmap.CompressFormat.JPEG;
-
-    /**
-     * Image compression quality
-     */
-    private static final int COMPRESS_QUALITY = 98;
-
-    private BitmapPool mBitmapPool;
-
-    public BitmapCache(BeerBellyParams params) {
-        super(params);
-
-        mBitmapPool = new BitmapPool();
-    }
+    private BitmapPool mBitmapPool = new BitmapPool();
 
     @Override
-    protected int sizeOf(String key, BitmapHolder value) {
-        return value.getBitmap().getByteCount();
-    }
-
-    @Override
-    protected void memoryEntryRemoved(boolean evicted, String key, BitmapHolder oldValue, BitmapHolder newValue) {
-        if (oldValue != null && oldValue.isFree()) {
-            mBitmapPool.addReusableBitmap(oldValue.getBitmap());
-        }
-    }
-
-    @Override
-    protected BitmapHolder read(@NonNull InputStreamPipe isPipe) {
+    public Drawable decode(@NonNull InputStreamPipe isPipe) {
         try {
             final BitmapFactory.Options options = new BitmapFactory.Options();
 
@@ -85,7 +57,7 @@ class BitmapCache extends BeerBelly<BitmapHolder> {
             is = isPipe.open();
             Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
             if (bitmap != null) {
-                return new BitmapHolder(bitmap);
+                return new BitmapDrawable(bitmap);
             } else {
                 return null;
             }
@@ -98,7 +70,14 @@ class BitmapCache extends BeerBelly<BitmapHolder> {
     }
 
     @Override
-    protected boolean write(OutputStream os, BitmapHolder value) {
-        return value.getBitmap().compress(COMPRESS_FORMAT, COMPRESS_QUALITY, os);
+    public int sizeOf(String key, @NonNull Drawable value) {
+        return ((BitmapDrawable) value).getBitmap().getByteCount();
+    }
+
+    @Override
+    public void onRemove(String key, @NonNull DrawableHolder oldValue) {
+        if (oldValue.isFree()) {
+            mBitmapPool.addReusableBitmap(((BitmapDrawable) oldValue.getDrawable()).getBitmap());
+        }
     }
 }

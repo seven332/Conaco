@@ -18,27 +18,16 @@ package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
-import com.hippo.yorozuya.IdIntGenerator;
+import com.hippo.yorozuya.io.InputStreamPipe;
 
-public interface Unikery {
+public abstract class DrawableHelper {
 
-    int INVAILD_ID = IdIntGenerator.INVAILD_ID;
+    @Nullable
+    public abstract Drawable decode(@NonNull InputStreamPipe isPipe);
 
-    void setTaskId(int id);
+    public abstract int sizeOf(String key, @NonNull Drawable value);
 
-    int getTaskId();
-
-    /**
-     * When {@link Conaco#load(Unikery, Drawable)} is called
-     */
-    void onStart();
-
-    void onRequest();
-
-    void onGetDrawable(@NonNull DrawableHolder holder, Conaco.Source source);
-
-    void onFailure();
-
-    void onCancel();
+    public abstract void onRemove(String key, @NonNull DrawableHolder oldValue);
 }
