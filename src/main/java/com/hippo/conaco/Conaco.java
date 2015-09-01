@@ -134,7 +134,7 @@ public class Conaco {
     void removeTask(ConacoTask task) {
         int index = mLoadTaskMap.indexOfValue(task);
         if (index >= 0) {
-            mLoadTaskMap.remove(index);
+            mLoadTaskMap.removeAt(index);
         }
     }
 
