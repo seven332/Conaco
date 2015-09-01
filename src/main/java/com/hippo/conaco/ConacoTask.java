@@ -22,11 +22,13 @@ import android.os.AsyncTask;
 import com.hippo.httpclient.HttpClient;
 import com.hippo.httpclient.HttpRequest;
 import com.hippo.httpclient.HttpResponse;
+import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Executor;
+import java.util.zip.GZIPInputStream;
 
 public class ConacoTask {
 
@@ -49,7 +51,7 @@ public class ConacoTask {
 
     private ConacoTask(Builder builder) {
         mId = builder.mId;
-        mUnikeryWeakReference = builder.mUnikeryWeakReference;
+        mUnikeryWeakReference = new WeakReference<>(builder.mUnikery);
         mKey = builder.mKey;
         mUrl = builder.mUrl;
         mDataContainer = builder.mDataContainer;
@@ -128,9 +130,7 @@ public class ConacoTask {
                 mDiskLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null) {
-                    if (holder != null) {
-                        unikery.onGetDrawable(holder, Conaco.Source.DISK);
-                    } else {
+                    if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.DISK)) {
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
@@ -154,12 +154,18 @@ public class ConacoTask {
             }
 
             DrawableHolder holder;
+            InputStream is = null;
             // Load it from internet
             mRequest = new HttpRequest();
             try {
                 mRequest.setUrl(mUrl);
                 HttpResponse httpResponse = mHttpClient.execute(mRequest);
-                InputStream is = httpResponse.getInputStream();
+                is = httpResponse.getInputStream();
+                String contentEncoding = httpResponse.getContentEncoding();
+                if (contentEncoding != null && contentEncoding.trim().toLowerCase().equals("gzip")) {
+                    is = new GZIPInputStream(is);
+                }
+
                 if (mKey != null) {
                     // Put stream itself to disk cache directly
                     if (mCache.putRawToDisk(mKey, is)) {
@@ -191,6 +197,7 @@ public class ConacoTask {
                 // Cancel or get trouble
                 return null;
             } finally {
+                IOUtils.closeQuietly(is);
                 mRequest.disconnect();
                 mRequest = null;
             }
@@ -204,9 +211,7 @@ public class ConacoTask {
                 mNetworkLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null) {
-                    if (holder != null) {
-                        unikery.onGetDrawable(holder, Conaco.Source.NETWORK);
-                    } else {
+                    if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.NETWORK)) {
                         unikery.onFailure();
                     }
                 }
@@ -222,7 +227,7 @@ public class ConacoTask {
     public static class Builder {
 
         private int mId;
-        private WeakReference<Unikery> mUnikeryWeakReference;
+        private Unikery mUnikery;
         private String mKey;
         private String mUrl;
         private DataContainer mDataContainer;
@@ -238,13 +243,21 @@ public class ConacoTask {
         }
 
         public Builder setUnikery(Unikery unikery) {
-            mUnikeryWeakReference = new WeakReference<>(unikery);
+            mUnikery = unikery;
             return this;
+        }
+
+        public Unikery getUnikery() {
+            return mUnikery;
         }
 
         public Builder setKey(String key) {
             mKey = key;
             return this;
+        }
+
+        public String getKey() {
+            return mKey;
         }
 
         public Builder setUrl(String url) {
@@ -262,9 +275,17 @@ public class ConacoTask {
             return this;
         }
 
+        public DrawableHelper getHelper() {
+            return mHelper;
+        }
+
         public Builder setCache(DrawableCache cache) {
             mCache = cache;
             return this;
+        }
+
+        public DrawableCache getCache() {
+            return mCache;
         }
 
         public Builder setHttpClient(HttpClient httpClient) {
@@ -272,14 +293,38 @@ public class ConacoTask {
             return this;
         }
 
+        public HttpClient getHttpClient() {
+            return mHttpClient;
+        }
+
         public Builder setDiskExecutor(Executor diskExecutor) {
             mDiskExecutor = diskExecutor;
             return this;
         }
 
+        public Executor getDiskExecutor() {
+            return mDiskExecutor;
+        }
+
         public Builder setNetworkExecutor(Executor networkExecutor) {
             mNetworkExecutor = networkExecutor;
             return this;
+        }
+
+        public Executor getNetworkExecutor() {
+            return mNetworkExecutor;
+        }
+
+        public void isValid() {
+            if (mUnikery == null) {
+                throw new IllegalStateException("Must set unikery");
+            }
+            if (mUrl == null) {
+                throw new IllegalStateException("Must set key");
+            }
+            if ((mKey == null && mDataContainer == null) || (mKey != null && mDataContainer != null)) {
+                throw new IllegalStateException("Only one in key and container can and must be null");
+            }
         }
 
         public ConacoTask build() {

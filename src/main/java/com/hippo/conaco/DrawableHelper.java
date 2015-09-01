@@ -22,12 +22,12 @@ import android.support.annotation.Nullable;
 
 import com.hippo.yorozuya.io.InputStreamPipe;
 
-public abstract class DrawableHelper {
+public interface DrawableHelper {
 
     @Nullable
-    public abstract Drawable decode(@NonNull InputStreamPipe isPipe);
+    Drawable decode(@NonNull InputStreamPipe isPipe);
 
-    public abstract int sizeOf(String key, @NonNull Drawable value);
+    int sizeOf(String key, @NonNull Drawable value);
 
-    public abstract void onRemove(String key, @NonNull DrawableHolder oldValue);
+    void onRemove(String key, @NonNull DrawableHolder oldValue);
 }

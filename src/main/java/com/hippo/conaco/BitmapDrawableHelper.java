@@ -26,7 +26,7 @@ import com.hippo.yorozuya.io.InputStreamPipe;
 
 import java.io.InputStream;
 
-public class BitmapDrawableHelper extends DrawableHelper {
+public class BitmapDrawableHelper implements DrawableHelper {
 
     private BitmapPool mBitmapPool = new BitmapPool();
 

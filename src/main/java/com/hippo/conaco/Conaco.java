@@ -18,7 +18,7 @@ package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
 import android.os.Process;
-import android.support.annotation.NonNull;
+import android.util.Log;
 
 import com.hippo.beerbelly.BeerBelly;
 import com.hippo.httpclient.HttpClient;
@@ -77,20 +77,12 @@ public class Conaco {
         mIdGenerator = new IdIntGenerator();
     }
 
-    public void load(@NonNull Unikery unikery, @NonNull String key, @NonNull String url) {
-        load(unikery, key, url, null);
-    }
-
-    /**
-     * @param key null for no cache, but container can't be null
-     */
-    public void load(@NonNull Unikery unikery, String key, @NonNull String url, DataContainer container) {
+    public void load(ConacoTask.Builder builder) {
         OSUtils.checkMainLoop();
+        builder.isValid();
 
-        // Check valid
-        if ((key == null && container == null) || (key != null && container != null)) {
-            throw new IllegalStateException("Only one in key and container can and must be null");
-        }
+        Unikery unikery = builder.getUnikery();
+        String key = builder.getKey();
 
         cancel(unikery);
 
@@ -100,23 +92,25 @@ public class Conaco {
             holder = mCache.getFromMemory(key);
         }
 
-        if (holder != null) {
-            unikery.onGetDrawable(holder, Source.MEMORY);
-        } else {
+        if (holder == null || !unikery.onGetDrawable(holder, Source.MEMORY)) {
             int id = mIdGenerator.nextId();
             unikery.setTaskId(id);
-            ConacoTask task = new ConacoTask.Builder()
-                    .setId(id)
-                    .setUnikery(unikery)
-                    .setKey(key)
-                    .setUrl(url)
-                    .setDataContainer(container)
-                    .setHelper(mHelper)
-                    .setCache(mCache)
-                    .setHttpClient(mHttpClient)
-                    .setDiskExecutor(mDiskTasExecutor)
-                    .setNetworkExecutor(mNetworkExecutor)
-                    .build();
+            if (builder.getHelper() == null) {
+                builder.setHelper(mHelper);
+            }
+            if (builder.getCache() == null) {
+                builder.setCache(mCache);
+            }
+            if (builder.getHttpClient() == null) {
+                builder.setHttpClient(mHttpClient);
+            }
+            if (builder.getDiskExecutor() == null) {
+                builder.setDiskExecutor(mDiskTasExecutor);
+            }
+            if (builder.getNetworkExecutor() == null) {
+                builder.setNetworkExecutor(mNetworkExecutor);
+            }
+            ConacoTask task = builder.build();
             mLoadTaskMap.put(id, task);
             task.start();
         }
@@ -126,7 +120,7 @@ public class Conaco {
         OSUtils.checkMainLoop();
 
         cancel(unikery);
-        unikery.onGetDrawable(new DrawableHolder(drawable), Source.USER);
+        unikery.onSetDrawable(drawable);
     }
 
     public void cancel(Unikery unikery) {
@@ -135,9 +129,13 @@ public class Conaco {
         int id = unikery.getTaskId();
         if (id != Unikery.INVAILD_ID) {
             ConacoTask task = mLoadTaskMap.get(id);
-            task.stop();
-            mLoadTaskMap.remove(id);
-            unikery.setTaskId(Unikery.INVAILD_ID);
+            if (task != null) {
+                task.stop();
+                mLoadTaskMap.remove(id);
+                unikery.setTaskId(Unikery.INVAILD_ID);
+            } else {
+                Log.e("TAG", "Conaco, an invalid id to cancel " + id);
+            }
         }
     }
 
@@ -160,8 +158,7 @@ public class Conaco {
     public enum Source {
         MEMORY,
         DISK,
-        NETWORK,
-        USER
+        NETWORK
     }
 
     public static class Builder extends BeerBelly.BeerBellyParams {

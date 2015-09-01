@@ -36,7 +36,12 @@ public interface Unikery {
 
     void onRequest();
 
-    void onGetDrawable(@NonNull DrawableHolder holder, Conaco.Source source);
+    /**
+     * @return Can use this drawable holder or not
+     */
+    boolean onGetDrawable(@NonNull DrawableHolder holder, Conaco.Source source);
+
+    void onSetDrawable(Drawable drawable);
 
     void onFailure();
 
