@@ -36,6 +36,8 @@ public interface Unikery {
 
     void onRequest();
 
+    void onProgress(long singleReceivedSize, long receivedSize, long totalSize);
+
     /**
      * @return Can use this drawable holder or not
      */

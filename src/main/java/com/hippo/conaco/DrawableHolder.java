@@ -19,12 +19,19 @@ package com.hippo.conaco;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
+import java.io.InputStream;
+
 public class DrawableHolder {
 
     @NonNull
     private final Drawable mDrawable;
 
     private int mReference;
+
+    // Stuff to do trick
+    InputStream is;
+    long length;
+    ProgressNotify notify;
 
     public DrawableHolder(@NonNull Drawable drawable) {
         mDrawable = drawable;

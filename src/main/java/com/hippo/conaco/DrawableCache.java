@@ -22,6 +22,8 @@ import android.support.annotation.NonNull;
 import com.hippo.beerbelly.BeerBelly;
 import com.hippo.yorozuya.io.InputStreamPipe;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 public class DrawableCache extends BeerBelly<DrawableHolder> {
@@ -59,7 +61,24 @@ public class DrawableCache extends BeerBelly<DrawableHolder> {
 
     @Override
     protected boolean write(OutputStream os, DrawableHolder value) {
-        // Conaco does not need it
-        return false;
+        ProgressNotify notify = value.notify;
+        long length = value.length;
+        InputStream is = value.is;
+
+        final byte buffer[] = new byte[1024 * 4];
+        long receivedSize = 0;
+        int bytesRead;
+
+        try {
+            while((bytesRead = is.read(buffer)) !=-1) {
+                os.write(buffer, 0, bytesRead);
+                receivedSize += bytesRead;
+                notify.notifyProgress((long) bytesRead, receivedSize, length);
+            }
+            os.flush();
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 }

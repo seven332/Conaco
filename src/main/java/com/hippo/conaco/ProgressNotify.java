@@ -16,13 +16,7 @@
 
 package com.hippo.conaco;
 
-import com.hippo.yorozuya.io.InputStreamPipe;
+public interface ProgressNotify {
 
-import java.io.InputStream;
-
-public interface DataContainer {
-
-    boolean save(InputStream is, ProgressNotify notify);
-
-    InputStreamPipe get();
+    void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize);
 }

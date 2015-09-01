@@ -145,7 +145,12 @@ public class ConacoTask {
         }
     }
 
-    private class NetworkLoadTask extends AsyncTask<Void, Void, DrawableHolder> {
+    public class NetworkLoadTask extends AsyncTask<Void, Long, DrawableHolder> implements ProgressNotify {
+
+        @Override
+        public void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize) {
+            publishProgress(singleReceivedSize, receivedSize, totalSize);
+        }
 
         @Override
         protected DrawableHolder doInBackground(Void... params) {
@@ -166,9 +171,22 @@ public class ConacoTask {
                     is = new GZIPInputStream(is);
                 }
 
+                if (isNotNecessary(this)) {
+                    return null;
+                }
+
                 if (mKey != null) {
-                    // Put stream itself to disk cache directly
-                    if (mCache.putRawToDisk(mKey, is)) {
+                    // It is a trick to call onProgress
+                    holder = new DrawableHolder(null);
+                    holder.is = is;
+                    holder.notify = this;
+                    holder.length = httpResponse.getContentLength();
+                    boolean result = mCache.putToDisk(mKey, holder);
+                    holder.notify = null;
+                    holder.is = null;
+                    holder = null;
+
+                    if (result) {
                         // Get drawable from disk cache
                         holder = mCache.getFromDisk(mKey);
                         if (holder != null) {
@@ -177,10 +195,11 @@ public class ConacoTask {
                         }
                         return holder;
                     } else {
+                        // TODO Remove bad data in disk cache
                         return null;
                     }
                 } else {
-                    if (!mDataContainer.save(is)) {
+                    if (!mDataContainer.save(is, this)) {
                         return null;
                     }
                     InputStreamPipe isp = mDataContainer.get();
@@ -221,6 +240,14 @@ public class ConacoTask {
         @Override
         protected void onCancelled(DrawableHolder holder) {
             mNetworkLoadTask = null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Long... values) {
+            Unikery unikery = mUnikeryWeakReference.get();
+            if (unikery != null) {
+                unikery.onProgress(values[0], values[1], values[2]);
+            }
         }
     }
 
