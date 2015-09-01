@@ -42,6 +42,7 @@ public class ConacoTask {
     private final HttpClient mHttpClient;
     private final Executor mDiskExecutor;
     private final Executor mNetworkExecutor;
+    private final Conaco mConaco;
 
     private DiskLoadTask mDiskLoadTask;
     private NetworkLoadTask mNetworkLoadTask;
@@ -60,6 +61,19 @@ public class ConacoTask {
         mHttpClient = builder.mHttpClient;
         mDiskExecutor = builder.mDiskExecutor;
         mNetworkExecutor = builder.mNetworkExecutor;
+        mConaco = builder.mConaco;
+    }
+
+    private void onFinishe() {
+        if (!mStop) {
+            mConaco.removeTask(this);
+            Unikery unikery = mUnikeryWeakReference.get();
+            if (unikery != null) {
+                unikery.setTaskId(Unikery.INVAILD_ID);
+            }
+        } else  {
+            // It is done by Conaco
+        }
     }
 
     public void start() {
@@ -70,7 +84,7 @@ public class ConacoTask {
         mStart = true;
 
         Unikery unikery = mUnikeryWeakReference.get();
-        if (unikery != null) {
+        if (unikery != null && unikery.getTaskId() == mId) {
             unikery.onStart();
 
             if (mKey != null) {
@@ -81,6 +95,8 @@ public class ConacoTask {
                 mNetworkLoadTask = new NetworkLoadTask();
                 mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
             }
+        } else {
+            onFinishe();
         }
     }
 
@@ -92,8 +108,7 @@ public class ConacoTask {
         mStop = true;
 
         Unikery unikery = mUnikeryWeakReference.get();
-        if (unikery != null) {
-            unikery.onCancel();
+        if (unikery != null && unikery.getTaskId() == mId) {
 
             if (mDiskLoadTask != null) { // Getting from disk
                 mDiskLoadTask.cancel(false);
@@ -104,11 +119,14 @@ public class ConacoTask {
                     mRequest = null;
                 }
             }
+
+            unikery.onCancel();
         }
     }
 
     private boolean isNotNecessary(AsyncTask asyncTask) {
-        return mStop || asyncTask.isCancelled() || mUnikeryWeakReference.get() == null;
+        Unikery unikery = mUnikeryWeakReference.get();
+        return mStop || asyncTask.isCancelled() || unikery == null || unikery.getTaskId() != mId;
     }
 
     private class DiskLoadTask extends AsyncTask<Void, Void, DrawableHolder> {
@@ -129,19 +147,22 @@ public class ConacoTask {
             } else {
                 mDiskLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
-                if (unikery != null) {
+                if (unikery != null && unikery.getTaskId() == mId) {
                     if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.DISK)) {
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
+                        return;
                     }
                 }
+                onFinishe();
             }
         }
 
         @Override
         protected void onCancelled(DrawableHolder holder) {
             mDiskLoadTask = null;
+            onFinishe();
         }
     }
 
@@ -149,7 +170,9 @@ public class ConacoTask {
 
         @Override
         public void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize) {
-            publishProgress(singleReceivedSize, receivedSize, totalSize);
+            if (!isNotNecessary(this)) {
+                publishProgress(singleReceivedSize, receivedSize, totalSize);
+            }
         }
 
         @Override
@@ -229,23 +252,25 @@ public class ConacoTask {
             } else {
                 mNetworkLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
-                if (unikery != null) {
+                if (unikery != null && unikery.getTaskId() == mId) {
                     if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.NETWORK)) {
                         unikery.onFailure();
                     }
                 }
+                onFinishe();
             }
         }
 
         @Override
         protected void onCancelled(DrawableHolder holder) {
             mNetworkLoadTask = null;
+            onFinishe();
         }
 
         @Override
         protected void onProgressUpdate(Long... values) {
             Unikery unikery = mUnikeryWeakReference.get();
-            if (unikery != null) {
+            if (!mStop && !isCancelled() && unikery != null && unikery.getTaskId() == mId) {
                 unikery.onProgress(values[0], values[1], values[2]);
             }
         }
@@ -263,6 +288,7 @@ public class ConacoTask {
         private HttpClient mHttpClient;
         private Executor mDiskExecutor;
         private Executor mNetworkExecutor;
+        private Conaco mConaco;
 
         public Builder setId(int id) {
             mId = id;
@@ -297,49 +323,38 @@ public class ConacoTask {
             return this;
         }
 
-        public Builder setHelper(DrawableHelper helper) {
+        Builder setHelper(DrawableHelper helper) {
             mHelper = helper;
             return this;
         }
 
-        public DrawableHelper getHelper() {
+        DrawableHelper getHelper() {
             return mHelper;
         }
 
-        public Builder setCache(DrawableCache cache) {
+        Builder setCache(DrawableCache cache) {
             mCache = cache;
             return this;
         }
 
-        public DrawableCache getCache() {
-            return mCache;
-        }
-
-        public Builder setHttpClient(HttpClient httpClient) {
+        Builder setHttpClient(HttpClient httpClient) {
             mHttpClient = httpClient;
             return this;
         }
 
-        public HttpClient getHttpClient() {
-            return mHttpClient;
-        }
-
-        public Builder setDiskExecutor(Executor diskExecutor) {
+        Builder setDiskExecutor(Executor diskExecutor) {
             mDiskExecutor = diskExecutor;
             return this;
         }
 
-        public Executor getDiskExecutor() {
-            return mDiskExecutor;
-        }
-
-        public Builder setNetworkExecutor(Executor networkExecutor) {
+        Builder setNetworkExecutor(Executor networkExecutor) {
             mNetworkExecutor = networkExecutor;
             return this;
         }
 
-        public Executor getNetworkExecutor() {
-            return mNetworkExecutor;
+        Builder setConaco(Conaco conaco) {
+            mConaco = conaco;
+            return this;
         }
 
         public void isValid() {

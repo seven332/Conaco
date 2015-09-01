@@ -95,21 +95,13 @@ public class Conaco {
         if (holder == null || !unikery.onGetDrawable(holder, Source.MEMORY)) {
             int id = mIdGenerator.nextId();
             unikery.setTaskId(id);
-            if (builder.getHelper() == null) {
-                builder.setHelper(mHelper);
-            }
-            if (builder.getCache() == null) {
-                builder.setCache(mCache);
-            }
-            if (builder.getHttpClient() == null) {
-                builder.setHttpClient(mHttpClient);
-            }
-            if (builder.getDiskExecutor() == null) {
-                builder.setDiskExecutor(mDiskTasExecutor);
-            }
-            if (builder.getNetworkExecutor() == null) {
-                builder.setNetworkExecutor(mNetworkExecutor);
-            }
+            builder.setId(id);
+            builder.setHelper(mHelper);
+            builder.setCache(mCache);
+            builder.setHttpClient(mHttpClient);
+            builder.setDiskExecutor(mDiskTasExecutor);
+            builder.setNetworkExecutor(mNetworkExecutor);
+            builder.setConaco(this);
             ConacoTask task = builder.build();
             mLoadTaskMap.put(id, task);
             task.start();
@@ -132,10 +124,17 @@ public class Conaco {
             if (task != null) {
                 task.stop();
                 mLoadTaskMap.remove(id);
-                unikery.setTaskId(Unikery.INVAILD_ID);
             } else {
                 Log.e("TAG", "Conaco, an invalid id to cancel " + id);
             }
+            unikery.setTaskId(Unikery.INVAILD_ID);
+        }
+    }
+
+    void removeTask(ConacoTask task) {
+        int index = mLoadTaskMap.indexOfValue(task);
+        if (index >= 0) {
+            mLoadTaskMap.remove(index);
         }
     }
 
