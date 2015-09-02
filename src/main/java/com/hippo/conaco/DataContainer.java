@@ -25,4 +25,6 @@ public interface DataContainer {
     boolean save(InputStream is, ProgressNotify notify);
 
     InputStreamPipe get();
+
+    void remove();
 }

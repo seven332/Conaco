@@ -86,15 +86,8 @@ public class ConacoTask {
         Unikery unikery = mUnikeryWeakReference.get();
         if (unikery != null && unikery.getTaskId() == mId) {
             unikery.onStart();
-
-            if (mKey != null) {
-                mDiskLoadTask = new DiskLoadTask();
-                mDiskLoadTask.executeOnExecutor(mDiskExecutor);
-            } else {
-                unikery.onRequest();
-                mNetworkLoadTask = new NetworkLoadTask();
-                mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
-            }
+            mDiskLoadTask = new DiskLoadTask();
+            mDiskLoadTask.executeOnExecutor(mDiskExecutor);
         } else {
             onFinishe();
         }
@@ -136,7 +129,18 @@ public class ConacoTask {
             if (isNotNecessary(this)) {
                 return null;
             } else {
-                return mCache.getFromDisk(mKey);
+                if (mKey != null) {
+                    return mCache.getFromDisk(mKey);
+                } else {
+                    InputStreamPipe isp = mDataContainer.get();
+                    if (isp != null) {
+                        Drawable drawable = mHelper.decode(isp);
+                        if (drawable != null) {
+                            return new DrawableHolder(drawable);
+                        }
+                    }
+                    return null;
+                }
             }
         }
 
