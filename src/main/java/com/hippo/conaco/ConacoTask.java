@@ -212,7 +212,7 @@ public class ConacoTask {
                     if (result) {
                         // Get drawable from disk cache
                         holder = mCache.getFromDisk(mKey);
-                        if (holder != null) {
+                        if (holder != null && mHelper.useMemoryCache(mKey, holder)) {
                             // Put it to memory
                             mCache.putToMemory(mKey, holder);
                         }

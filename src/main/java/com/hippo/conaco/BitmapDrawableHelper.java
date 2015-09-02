@@ -70,14 +70,19 @@ public class BitmapDrawableHelper implements DrawableHelper {
     }
 
     @Override
-    public int sizeOf(String key, @NonNull Drawable value) {
+    public int sizeOf(@NonNull String key, @NonNull Drawable value) {
         return ((BitmapDrawable) value).getBitmap().getByteCount();
     }
 
     @Override
-    public void onRemove(String key, @NonNull DrawableHolder oldValue) {
+    public void onRemove(@NonNull String key, @NonNull DrawableHolder oldValue) {
         if (oldValue.isFree()) {
             mBitmapPool.addReusableBitmap(((BitmapDrawable) oldValue.getDrawable()).getBitmap());
         }
+    }
+
+    @Override
+    public boolean useMemoryCache(@NonNull String key, DrawableHolder holder) {
+        return true;
     }
 }

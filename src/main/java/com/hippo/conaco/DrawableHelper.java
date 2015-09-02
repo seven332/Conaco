@@ -27,7 +27,9 @@ public interface DrawableHelper {
     @Nullable
     Drawable decode(@NonNull InputStreamPipe isPipe);
 
-    int sizeOf(String key, @NonNull Drawable value);
+    int sizeOf(@NonNull String key, @NonNull Drawable value);
 
-    void onRemove(String key, @NonNull DrawableHolder oldValue);
+    void onRemove(@NonNull String key, @NonNull DrawableHolder oldValue);
+
+    boolean useMemoryCache(@NonNull String key, DrawableHolder holder);
 }
