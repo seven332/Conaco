@@ -77,6 +77,10 @@ public class Conaco {
         mIdGenerator = new IdIntGenerator();
     }
 
+    public BeerBelly getBeerBelly() {
+        return mCache;
+    }
+
     public void load(ConacoTask.Builder builder) {
         OSUtils.checkMainLoop();
         builder.isValid();
