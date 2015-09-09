@@ -366,7 +366,7 @@ public class ConacoTask {
                 throw new IllegalStateException("Must set unikery");
             }
             if (mUrl == null) {
-                throw new IllegalStateException("Must set key");
+                throw new IllegalStateException("Must set url");
             }
             if ((mKey == null && mDataContainer == null) || (mKey != null && mDataContainer != null)) {
                 throw new IllegalStateException("Only one in key and container can and must be null");
