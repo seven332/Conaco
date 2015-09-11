@@ -28,7 +28,6 @@ import com.hippo.yorozuya.io.InputStreamPipe;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Executor;
-import java.util.zip.GZIPInputStream;
 
 public class ConacoTask {
 
@@ -193,10 +192,6 @@ public class ConacoTask {
                 mRequest.setUrl(mUrl);
                 HttpResponse httpResponse = mHttpClient.execute(mRequest);
                 is = httpResponse.getInputStream();
-                String contentEncoding = httpResponse.getContentEncoding();
-                if (contentEncoding != null && contentEncoding.trim().toLowerCase().equals("gzip")) {
-                    is = new GZIPInputStream(is);
-                }
 
                 if (isNotNecessary(this)) {
                     return null;
