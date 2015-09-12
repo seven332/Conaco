@@ -92,7 +92,7 @@ public class Conaco {
 
         DrawableHolder holder = null;
 
-        if (key != null && mHelper.useMemoryCache(key, null)) {
+        if (key != null && builder.isUseMemoryCache() && mHelper.useMemoryCache(key, null)) {
             holder = mCache.getFromMemory(key);
         }
 

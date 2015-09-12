@@ -36,6 +36,8 @@ public class ConacoTask {
     private final String mKey;
     private final String mUrl;
     private final DataContainer mDataContainer;
+    private boolean mUseDiskCache;
+    private boolean mUseNetwork;
     private final DrawableHelper mHelper;
     private final DrawableCache mCache;
     private final HttpClient mHttpClient;
@@ -55,6 +57,8 @@ public class ConacoTask {
         mKey = builder.mKey;
         mUrl = builder.mUrl;
         mDataContainer = builder.mDataContainer;
+        mUseDiskCache = builder.mUseDiskCache;
+        mUseNetwork = builder.mUseNetwork;
         mHelper = builder.mHelper;
         mCache = builder.mCache;
         mHttpClient = builder.mHttpClient;
@@ -84,12 +88,20 @@ public class ConacoTask {
 
         Unikery unikery = mUnikeryWeakReference.get();
         if (unikery != null && unikery.getTaskId() == mId) {
-            unikery.onStart();
-            mDiskLoadTask = new DiskLoadTask();
-            mDiskLoadTask.executeOnExecutor(mDiskExecutor);
-        } else {
-            onFinishe();
+            if (mUseDiskCache) {
+                unikery.onStart();
+                mDiskLoadTask = new DiskLoadTask();
+                mDiskLoadTask.executeOnExecutor(mDiskExecutor);
+                return;
+            } else if (mUseNetwork) {
+                unikery.onStart();
+                mNetworkLoadTask = new NetworkLoadTask();
+                mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
+                return;
+            }
         }
+
+        onFinishe();
     }
 
     public void stop() {
@@ -151,11 +163,14 @@ public class ConacoTask {
                 mDiskLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
-                    if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.DISK)) {
+                    boolean getDrawable = false;
+                    if ((holder == null || !(getDrawable = unikery.onGetDrawable(holder, Conaco.Source.DISK))) && mUseNetwork) {
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                         return;
+                    } else if (!getDrawable) {
+                        unikery.onFailure();
                     }
                 }
                 onFinishe();
@@ -282,6 +297,9 @@ public class ConacoTask {
         private String mKey;
         private String mUrl;
         private DataContainer mDataContainer;
+        private boolean mUseMemoryCache = true;
+        private boolean mUseDiskCache = true;
+        private boolean mUseNetwork = true;
         private DrawableHelper mHelper;
         private DrawableCache mCache;
         private HttpClient mHttpClient;
@@ -320,6 +338,33 @@ public class ConacoTask {
         public Builder setDataContainer(DataContainer dataContainer) {
             mDataContainer = dataContainer;
             return this;
+        }
+
+        public Builder setUseMemoryCache(boolean useMemoryCache) {
+            mUseMemoryCache = useMemoryCache;
+            return this;
+        }
+
+        boolean isUseMemoryCache() {
+            return mUseMemoryCache;
+        }
+
+        public Builder setUseDiskCache(boolean useDiskCache) {
+            mUseDiskCache = useDiskCache;
+            return this;
+        }
+
+        boolean isUseDiskCache() {
+            return mUseDiskCache;
+        }
+
+        public Builder setUseNetwork(boolean useNetwork) {
+            mUseNetwork = useNetwork;
+            return this;
+        }
+
+        boolean isUseNetwork() {
+            return mUseNetwork;
         }
 
         Builder setHelper(DrawableHelper helper) {
