@@ -206,6 +206,7 @@ public class ConacoTask {
             mCall = mOkHttpClient.newCall(new Request.Builder().url(mUrl).build());
             try {
                 Response response = mCall.execute();
+                is = response.body().byteStream();
 
                 if (isNotNecessary(this)) {
                     return null;
@@ -214,7 +215,7 @@ public class ConacoTask {
                 if (mKey != null) {
                     // It is a trick to call onProgress
                     holder = new DrawableHolder(null);
-                    holder.is = response.body().byteStream();
+                    holder.is = is;
                     holder.notify = this;
                     holder.length = response.body().contentLength();
                     boolean result = mCache.putToDisk(mKey, holder);
