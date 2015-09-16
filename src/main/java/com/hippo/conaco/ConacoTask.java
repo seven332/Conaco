@@ -19,11 +19,12 @@ package com.hippo.conaco;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 
-import com.hippo.httpclient.HttpClient;
-import com.hippo.httpclient.HttpRequest;
-import com.hippo.httpclient.HttpResponse;
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
+import com.squareup.okhttp.Call;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -40,14 +41,14 @@ public class ConacoTask {
     private boolean mUseNetwork;
     private final DrawableHelper mHelper;
     private final DrawableCache mCache;
-    private final HttpClient mHttpClient;
+    private final OkHttpClient mOkHttpClient;
     private final Executor mDiskExecutor;
     private final Executor mNetworkExecutor;
     private final Conaco mConaco;
 
     private DiskLoadTask mDiskLoadTask;
     private NetworkLoadTask mNetworkLoadTask;
-    private HttpRequest mRequest;
+    private Call mCall;
     private boolean mStart;
     private volatile boolean mStop;
 
@@ -61,7 +62,7 @@ public class ConacoTask {
         mUseNetwork = builder.mUseNetwork;
         mHelper = builder.mHelper;
         mCache = builder.mCache;
-        mHttpClient = builder.mHttpClient;
+        mOkHttpClient = builder.mOkHttpClient;
         mDiskExecutor = builder.mDiskExecutor;
         mNetworkExecutor = builder.mNetworkExecutor;
         mConaco = builder.mConaco;
@@ -118,9 +119,9 @@ public class ConacoTask {
                 mDiskLoadTask.cancel(false);
             } else if (mNetworkLoadTask != null) { // Getting from network
                 mNetworkLoadTask.cancel(false);
-                if (mRequest != null) {
-                    mRequest.cancel();
-                    mRequest = null;
+                if (mCall != null) {
+                    mCall.cancel();
+                    mCall = null;
                 }
             }
 
@@ -202,11 +203,9 @@ public class ConacoTask {
             DrawableHolder holder;
             InputStream is = null;
             // Load it from internet
-            mRequest = new HttpRequest();
+            mCall = mOkHttpClient.newCall(new Request.Builder().url(mUrl).build());
             try {
-                mRequest.setUrl(mUrl);
-                HttpResponse httpResponse = mHttpClient.execute(mRequest);
-                is = httpResponse.getInputStream();
+                Response response = mCall.execute();
 
                 if (isNotNecessary(this)) {
                     return null;
@@ -215,9 +214,9 @@ public class ConacoTask {
                 if (mKey != null) {
                     // It is a trick to call onProgress
                     holder = new DrawableHolder(null);
-                    holder.is = is;
+                    holder.is = response.body().byteStream();
                     holder.notify = this;
-                    holder.length = httpResponse.getContentLength();
+                    holder.length = response.body().contentLength();
                     boolean result = mCache.putToDisk(mKey, holder);
                     holder.notify = null;
                     holder.is = null;
@@ -254,8 +253,6 @@ public class ConacoTask {
                 return null;
             } finally {
                 IOUtils.closeQuietly(is);
-                mRequest.disconnect();
-                mRequest = null;
             }
         }
 
@@ -302,7 +299,7 @@ public class ConacoTask {
         private boolean mUseNetwork = true;
         private DrawableHelper mHelper;
         private DrawableCache mCache;
-        private HttpClient mHttpClient;
+        private OkHttpClient mOkHttpClient;
         private Executor mDiskExecutor;
         private Executor mNetworkExecutor;
         private Conaco mConaco;
@@ -381,8 +378,8 @@ public class ConacoTask {
             return this;
         }
 
-        Builder setHttpClient(HttpClient httpClient) {
-            mHttpClient = httpClient;
+        Builder setOkHttpClient(OkHttpClient okHttpClient) {
+            mOkHttpClient = okHttpClient;
             return this;
         }
 

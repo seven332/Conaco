@@ -21,12 +21,12 @@ import android.os.Process;
 import android.util.Log;
 
 import com.hippo.beerbelly.BeerBelly;
-import com.hippo.httpclient.HttpClient;
 import com.hippo.yorozuya.IdIntGenerator;
 import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SafeSparseArray;
 import com.hippo.yorozuya.SerialThreadExecutor;
+import com.squareup.okhttp.OkHttpClient;
 
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -39,7 +39,7 @@ public class Conaco {
 
     private DrawableHelper mHelper;
     private DrawableCache mCache;
-    private HttpClient mHttpClient;
+    private OkHttpClient mOkHttpClient;
 
     private SafeSparseArray<ConacoTask> mLoadTaskMap;
 
@@ -63,7 +63,7 @@ public class Conaco {
 
         mCache = new DrawableCache(beerBellyParams, mHelper);
 
-        mHttpClient = builder.httpClient;
+        mOkHttpClient = builder.okHttpClient;
 
         mLoadTaskMap = new SafeSparseArray<>();
 
@@ -102,7 +102,7 @@ public class Conaco {
             builder.setId(id);
             builder.setHelper(mHelper);
             builder.setCache(mCache);
-            builder.setHttpClient(mHttpClient);
+            builder.setOkHttpClient(mOkHttpClient);
             builder.setDiskExecutor(mDiskTasExecutor);
             builder.setNetworkExecutor(mNetworkExecutor);
             builder.setConaco(this);
@@ -168,19 +168,18 @@ public class Conaco {
         /**
          * The client to get image from internet
          */
-        public HttpClient httpClient = null;
+        public OkHttpClient okHttpClient = null;
 
         /**
          * Decode, get size and others
          */
         public DrawableHelper drawableHelper = null;
 
-
         @Override
         public void isVaild() throws IllegalStateException {
             super.isVaild();
 
-            if (httpClient == null) {
+            if (okHttpClient == null) {
                 throw new IllegalStateException("No http client? How can I load image via url?");
             }
         }
