@@ -37,6 +37,7 @@ public class ConacoTask {
     private final String mKey;
     private final String mUrl;
     private final DataContainer mDataContainer;
+    private boolean mUseMemoryCache;
     private boolean mUseDiskCache;
     private boolean mUseNetwork;
     private final DrawableHelper mHelper;
@@ -58,6 +59,7 @@ public class ConacoTask {
         mKey = builder.mKey;
         mUrl = builder.mUrl;
         mDataContainer = builder.mDataContainer;
+        mUseMemoryCache = builder.mUseMemoryCache;
         mUseDiskCache = builder.mUseDiskCache;
         mUseNetwork = builder.mUseNetwork;
         mHelper = builder.mHelper;
@@ -90,12 +92,12 @@ public class ConacoTask {
         Unikery unikery = mUnikeryWeakReference.get();
         if (unikery != null && unikery.getTaskId() == mId) {
             if (mUseDiskCache) {
-                unikery.onStart();
                 mDiskLoadTask = new DiskLoadTask();
                 mDiskLoadTask.executeOnExecutor(mDiskExecutor);
                 return;
             } else if (mUseNetwork) {
-                unikery.onStart();
+                unikery.onMiss(Conaco.Source.DISK);
+
                 mNetworkLoadTask = new NetworkLoadTask();
                 mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                 return;
@@ -142,7 +144,12 @@ public class ConacoTask {
                 return null;
             } else {
                 if (mKey != null) {
-                    return mCache.getFromDisk(mKey);
+                    DrawableHolder holder = mCache.getFromDisk(mKey);
+                    if (holder != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
+                        // Put it to memory
+                        mCache.putToMemory(mKey, holder);
+                    }
+                    return holder;
                 } else {
                     InputStreamPipe isp = mDataContainer.get();
                     if (isp != null) {
@@ -166,11 +173,13 @@ public class ConacoTask {
                 if (unikery != null && unikery.getTaskId() == mId) {
                     boolean getDrawable = false;
                     if ((holder == null || !(getDrawable = unikery.onGetDrawable(holder, Conaco.Source.DISK))) && mUseNetwork) {
+                        unikery.onMiss(Conaco.Source.DISK);
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                         return;
                     } else if (!getDrawable) {
+                        unikery.onMiss(Conaco.Source.DISK);
                         unikery.onFailure();
                     }
                 }
@@ -226,7 +235,7 @@ public class ConacoTask {
                     if (result) {
                         // Get drawable from disk cache
                         holder = mCache.getFromDisk(mKey);
-                        if (holder != null && mHelper.useMemoryCache(mKey, holder)) {
+                        if (holder != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
                             // Put it to memory
                             mCache.putToMemory(mKey, holder);
                         }

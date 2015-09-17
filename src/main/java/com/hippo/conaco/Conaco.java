@@ -99,6 +99,7 @@ public class Conaco {
         if (holder == null || !unikery.onGetDrawable(holder, Source.MEMORY)) {
             int id = mIdGenerator.nextId();
             unikery.setTaskId(id);
+            unikery.onMiss(Source.MEMORY);
             builder.setId(id);
             builder.setHelper(mHelper);
             builder.setCache(mCache);

@@ -29,10 +29,7 @@ public interface Unikery {
 
     int getTaskId();
 
-    /**
-     * When {@link Conaco#load(Unikery, Drawable)} is called
-     */
-    void onStart();
+    void onMiss(Conaco.Source source);
 
     void onRequest();
 
