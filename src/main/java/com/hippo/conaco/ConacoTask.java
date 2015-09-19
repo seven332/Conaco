@@ -143,23 +143,30 @@ public class ConacoTask {
             if (isNotNecessary(this)) {
                 return null;
             } else {
-                if (mKey != null) {
-                    DrawableHolder holder = mCache.getFromDisk(mKey);
-                    if (holder != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
-                        // Put it to memory
-                        mCache.putToMemory(mKey, holder);
-                    }
-                    return holder;
-                } else {
+                DrawableHolder holder = null;
+
+                if (mDataContainer != null) {
                     InputStreamPipe isp = mDataContainer.get();
                     if (isp != null) {
                         Drawable drawable = mHelper.decode(isp);
                         if (drawable != null) {
-                            return new DrawableHolder(drawable);
+                            holder = new DrawableHolder(drawable);
                         }
                     }
-                    return null;
                 }
+
+                if (mKey != null) {
+                    if (holder == null && mUseDiskCache) {
+                        holder = mCache.getFromDisk(mKey);
+                    }
+
+                    if (holder != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
+                        // Put it to memory
+                        mCache.putToMemory(mKey, holder);
+                    }
+                }
+
+                return holder;
             }
         }
 
@@ -221,7 +228,7 @@ public class ConacoTask {
                     return null;
                 }
 
-                if (mKey != null) {
+                if (mDataContainer == null && mKey != null) {
                     // It is a trick to call onProgress
                     holder = new DrawableHolder(null);
                     holder.is = is;
@@ -244,7 +251,7 @@ public class ConacoTask {
                         // TODO Remove bad data in disk cache
                         return null;
                     }
-                } else {
+                } else if (mDataContainer != null) {
                     if (!mDataContainer.save(is, this)) {
                         return null;
                     }
@@ -253,10 +260,18 @@ public class ConacoTask {
                         return null;
                     }
                     Drawable drawable = mHelper.decode(isp);
-                    if (drawable == null) {
+                    if (drawable != null) {
+                        holder = new DrawableHolder(drawable);
+                        if (mKey != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
+                            // Put it to memory
+                            mCache.putToMemory(mKey, holder);
+                        }
+                        return holder;
+                    } else {
                         return null;
                     }
-                    return new DrawableHolder(drawable);
+                } else {
+                    return null;
                 }
             } catch (Exception e) {
                 // Cancel or get trouble
@@ -412,11 +427,8 @@ public class ConacoTask {
             if (mUnikery == null) {
                 throw new IllegalStateException("Must set unikery");
             }
-            if (mUrl == null) {
-                throw new IllegalStateException("Must set url");
-            }
-            if ((mKey == null && mDataContainer == null) || (mKey != null && mDataContainer != null)) {
-                throw new IllegalStateException("Only one in key and container can and must be null");
+            if (mKey == null && mUrl == null && mDataContainer == null) {
+                throw new IllegalStateException("At least one of mKey and mUrl and mDataContainer have to not be null");
             }
         }
 
