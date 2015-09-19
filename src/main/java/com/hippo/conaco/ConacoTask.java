@@ -22,9 +22,11 @@ import android.os.AsyncTask;
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
 import com.squareup.okhttp.Call;
+import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import com.squareup.okhttp.ResponseBody;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -252,7 +254,16 @@ public class ConacoTask {
                         return null;
                     }
                 } else if (mDataContainer != null) {
-                    if (!mDataContainer.save(is, this)) {
+                    ResponseBody body = response.body();
+                    String mediaType;
+                    MediaType mt = body.contentType();
+                    if (mt != null) {
+                        mediaType = mt.type() + '/' + mt.subtype();
+                    } else {
+                        mediaType = null;
+                    }
+
+                    if (!mDataContainer.save(is, body.contentLength(), mediaType, this)) {
                         return null;
                     }
                     InputStreamPipe isp = mDataContainer.get();

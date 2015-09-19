@@ -22,7 +22,7 @@ import java.io.InputStream;
 
 public interface DataContainer {
 
-    boolean save(InputStream is, ProgressNotify notify);
+    boolean save(InputStream is, long length, String mediaType, ProgressNotify notify);
 
     InputStreamPipe get();
 
