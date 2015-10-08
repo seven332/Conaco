@@ -22,6 +22,8 @@ import java.io.InputStream;
 
 public interface DataContainer {
 
+    void onUrlMoved(String requestUrl, String responseUrl);
+
     boolean save(InputStream is, long length, String mediaType, ProgressNotify notify);
 
     InputStreamPipe get();

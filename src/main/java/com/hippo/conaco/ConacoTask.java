@@ -22,6 +22,7 @@ import android.os.AsyncTask;
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
 import com.squareup.okhttp.Call;
+import com.squareup.okhttp.HttpUrl;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -221,7 +222,8 @@ public class ConacoTask {
             DrawableHolder holder;
             InputStream is = null;
             // Load it from internet
-            mCall = mOkHttpClient.newCall(new Request.Builder().url(mUrl).build());
+            Request request = new Request.Builder().url(mUrl).build();
+            mCall = mOkHttpClient.newCall(request);
             try {
                 Response response = mCall.execute();
                 is = response.body().byteStream();
@@ -261,6 +263,13 @@ public class ConacoTask {
                         mediaType = mt.type() + '/' + mt.subtype();
                     } else {
                         mediaType = null;
+                    }
+
+                    // Check url Moved
+                    HttpUrl requestHttpUrl = request.httpUrl();
+                    HttpUrl responseHttpUrl = response.request().httpUrl();
+                    if (!responseHttpUrl.equals(requestHttpUrl)) {
+                        mDataContainer.onUrlMoved(mUrl, responseHttpUrl.url().toString());
                     }
 
                     if (!mDataContainer.save(is, body.contentLength(), mediaType, this)) {
