@@ -26,7 +26,9 @@ public class DrawableHolder {
     @NonNull
     private final Drawable mDrawable;
 
-    private int mReference;
+    private int mReference = 0;
+
+    private boolean mInMemoryCache = false;
 
     // Stuff to do trick
     InputStream is;
@@ -53,5 +55,13 @@ public class DrawableHolder {
 
     public synchronized boolean isFree() {
         return mReference == 0;
+    }
+
+    void setInMemoryCache(boolean inMemoryCache) {
+        mInMemoryCache = inMemoryCache;
+    }
+
+    public boolean isInMemoryCache() {
+        return mInMemoryCache;
     }
 }

@@ -41,9 +41,15 @@ public class DrawableCache extends BeerBelly<DrawableHolder> {
     }
 
     @Override
+    protected void memoryEntryAdded(DrawableHolder value) {
+        value.setInMemoryCache(true);
+    }
+
+    @Override
     protected void memoryEntryRemoved(boolean evicted, String key,
-            DrawableHolder oldValue,DrawableHolder newValue) {
+            DrawableHolder oldValue, DrawableHolder newValue) {
         if (oldValue != null) {
+            oldValue.setInMemoryCache(false);
             mHelper.onRemove(key, oldValue);
         }
     }
