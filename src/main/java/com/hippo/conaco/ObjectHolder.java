@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hippo Seven
+ * Copyright 2016 Hippo Seven
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,14 @@
 
 package com.hippo.conaco;
 
-import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
 import java.io.InputStream;
 
-public class DrawableHolder {
+public class ObjectHolder {
 
     @NonNull
-    private final Drawable mDrawable;
+    private final Object mObject;
 
     private int mReference = 0;
 
@@ -35,12 +34,12 @@ public class DrawableHolder {
     long length;
     ProgressNotify notify;
 
-    public DrawableHolder(@NonNull Drawable drawable) {
-        mDrawable = drawable;
+    public ObjectHolder(@NonNull Object object) {
+        mObject = object;
     }
 
-    public @NonNull Drawable getDrawable() {
-        return mDrawable;
+    public @NonNull Object getObject() {
+        return mObject;
     }
 
     public synchronized void obtain() {

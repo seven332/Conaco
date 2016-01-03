@@ -37,8 +37,8 @@ public class Conaco {
 
     private static final String TAG = Conaco.class.getSimpleName();
 
-    private DrawableHelper mHelper;
-    private DrawableCache mCache;
+    private ObjectHelper mHelper;
+    private ObjectCache mCache;
     private OkHttpClient mOkHttpClient;
 
     private SafeSparseArray<ConacoTask> mLoadTaskMap;
@@ -49,10 +49,7 @@ public class Conaco {
     private final IdIntGenerator mIdGenerator;
 
     private Conaco(Builder builder) {
-        mHelper = builder.drawableHelper;
-        if (mHelper == null) {
-            mHelper = new BitmapDrawableHelper();
-        }
+        mHelper = builder.objectHelper;
 
         BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
         beerBellyParams.hasMemoryCache = builder.hasMemoryCache;
@@ -61,7 +58,7 @@ public class Conaco {
         beerBellyParams.diskCacheDir = builder.diskCacheDir;
         beerBellyParams.diskCacheMaxSize = builder.diskCacheMaxSize;
 
-        mCache = new DrawableCache(beerBellyParams, mHelper);
+        mCache = new ObjectCache(beerBellyParams, mHelper);
 
         mOkHttpClient = builder.okHttpClient;
 
@@ -90,13 +87,13 @@ public class Conaco {
 
         cancel(unikery);
 
-        DrawableHolder holder = null;
+        ObjectHolder holder = null;
 
         if (key != null && builder.isUseMemoryCache() && mHelper.useMemoryCache(key, null)) {
             holder = mCache.getFromMemory(key);
         }
 
-        if (holder == null || !unikery.onGetDrawable(holder, Source.MEMORY)) {
+        if (holder == null || !unikery.onGetObject(holder, Source.MEMORY)) {
             int id = mIdGenerator.nextId();
             unikery.setTaskId(id);
             unikery.onMiss(Source.MEMORY);
@@ -174,7 +171,7 @@ public class Conaco {
         /**
          * Decode, get size and others
          */
-        public DrawableHelper drawableHelper = null;
+        public ObjectHelper objectHelper = null;
 
         @Override
         public void isVaild() throws IllegalStateException {

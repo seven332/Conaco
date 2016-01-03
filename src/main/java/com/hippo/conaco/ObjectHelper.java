@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hippo Seven
+ * Copyright 2016 Hippo Seven
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,19 @@
 
 package com.hippo.conaco;
 
-import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import com.hippo.yorozuya.io.InputStreamPipe;
 
-public interface DrawableHelper {
+public interface ObjectHelper {
 
     @Nullable
-    Drawable decode(@NonNull InputStreamPipe isPipe);
+    Object decode(@NonNull InputStreamPipe isPipe);
 
-    int sizeOf(@NonNull String key, @NonNull Drawable value);
+    int sizeOf(@NonNull String key, @NonNull Object value);
 
-    void onRemove(@NonNull String key, @NonNull DrawableHolder oldValue);
+    void onRemove(@NonNull String key, @NonNull ObjectHolder oldValue);
 
-    boolean useMemoryCache(@NonNull String key, DrawableHolder holder);
+    boolean useMemoryCache(@NonNull String key, ObjectHolder holder);
 }

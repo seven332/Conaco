@@ -16,7 +16,6 @@
 
 package com.hippo.conaco;
 
-import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 
 import com.hippo.yorozuya.IOUtils;
@@ -43,8 +42,8 @@ public class ConacoTask {
     private boolean mUseMemoryCache;
     private boolean mUseDiskCache;
     private boolean mUseNetwork;
-    private final DrawableHelper mHelper;
-    private final DrawableCache mCache;
+    private final ObjectHelper mHelper;
+    private final ObjectCache mCache;
     private final OkHttpClient mOkHttpClient;
     private final Executor mDiskExecutor;
     private final Executor mNetworkExecutor;
@@ -139,21 +138,21 @@ public class ConacoTask {
         return mStop || asyncTask.isCancelled() || unikery == null || unikery.getTaskId() != mId;
     }
 
-    private class DiskLoadTask extends AsyncTask<Void, Void, DrawableHolder> {
+    private class DiskLoadTask extends AsyncTask<Void, Void, ObjectHolder> {
 
         @Override
-        protected DrawableHolder doInBackground(Void... params) {
+        protected ObjectHolder doInBackground(Void... params) {
             if (isNotNecessary(this)) {
                 return null;
             } else {
-                DrawableHolder holder = null;
+                ObjectHolder holder = null;
 
                 if (mDataContainer != null) {
                     InputStreamPipe isp = mDataContainer.get();
                     if (isp != null) {
-                        Drawable drawable = mHelper.decode(isp);
-                        if (drawable != null) {
-                            holder = new DrawableHolder(drawable);
+                        Object object = mHelper.decode(isp);
+                        if (object != null) {
+                            holder = new ObjectHolder(object);
                         }
                     }
                 }
@@ -174,21 +173,21 @@ public class ConacoTask {
         }
 
         @Override
-        protected void onPostExecute(DrawableHolder holder) {
+        protected void onPostExecute(ObjectHolder holder) {
             if (isCancelled() || mStop) {
                 onCancelled(holder);
             } else {
                 mDiskLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
-                    boolean getDrawable = false;
-                    if ((holder == null || !(getDrawable = unikery.onGetDrawable(holder, Conaco.Source.DISK))) && mUseNetwork) {
+                    boolean getObject = false;
+                    if ((holder == null || !(getObject = unikery.onGetObject(holder, Conaco.Source.DISK))) && mUseNetwork) {
                         unikery.onMiss(Conaco.Source.DISK);
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                         return;
-                    } else if (!getDrawable) {
+                    } else if (!getObject) {
                         unikery.onMiss(Conaco.Source.DISK);
                         unikery.onFailure();
                     }
@@ -198,13 +197,13 @@ public class ConacoTask {
         }
 
         @Override
-        protected void onCancelled(DrawableHolder holder) {
+        protected void onCancelled(ObjectHolder holder) {
             mDiskLoadTask = null;
             onFinishe();
         }
     }
 
-    public class NetworkLoadTask extends AsyncTask<Void, Long, DrawableHolder> implements ProgressNotify {
+    public class NetworkLoadTask extends AsyncTask<Void, Long, ObjectHolder> implements ProgressNotify {
 
         @Override
         public void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize) {
@@ -214,12 +213,12 @@ public class ConacoTask {
         }
 
         @Override
-        protected DrawableHolder doInBackground(Void... params) {
+        protected ObjectHolder doInBackground(Void... params) {
             if (isNotNecessary(this)) {
                 return null;
             }
 
-            DrawableHolder holder;
+            ObjectHolder holder;
             InputStream is = null;
             // Load it from internet
             Request request = new Request.Builder().url(mUrl).build();
@@ -234,7 +233,7 @@ public class ConacoTask {
 
                 if (mDataContainer == null && mKey != null) {
                     // It is a trick to call onProgress
-                    holder = new DrawableHolder(null);
+                    holder = new ObjectHolder(null);
                     holder.is = is;
                     holder.notify = this;
                     holder.length = response.body().contentLength();
@@ -244,7 +243,7 @@ public class ConacoTask {
                     holder = null;
 
                     if (result) {
-                        // Get drawable from disk cache
+                        // Get object from disk cache
                         holder = mCache.getFromDisk(mKey);
                         if (holder != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
                             // Put it to memory
@@ -279,9 +278,9 @@ public class ConacoTask {
                     if (isp == null) {
                         return null;
                     }
-                    Drawable drawable = mHelper.decode(isp);
-                    if (drawable != null) {
-                        holder = new DrawableHolder(drawable);
+                    Object object = mHelper.decode(isp);
+                    if (object != null) {
+                        holder = new ObjectHolder(object);
                         if (mKey != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, holder)) {
                             // Put it to memory
                             mCache.putToMemory(mKey, holder);
@@ -302,14 +301,14 @@ public class ConacoTask {
         }
 
         @Override
-        protected void onPostExecute(DrawableHolder holder) {
+        protected void onPostExecute(ObjectHolder holder) {
             if (isCancelled() || mStop) {
                 onCancelled(holder);
             } else {
                 mNetworkLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
-                    if (holder == null || !unikery.onGetDrawable(holder, Conaco.Source.NETWORK)) {
+                    if (holder == null || !unikery.onGetObject(holder, Conaco.Source.NETWORK)) {
                         unikery.onFailure();
                     }
                 }
@@ -318,7 +317,7 @@ public class ConacoTask {
         }
 
         @Override
-        protected void onCancelled(DrawableHolder holder) {
+        protected void onCancelled(ObjectHolder holder) {
             mNetworkLoadTask = null;
             onFinishe();
         }
@@ -342,8 +341,8 @@ public class ConacoTask {
         private boolean mUseMemoryCache = true;
         private boolean mUseDiskCache = true;
         private boolean mUseNetwork = true;
-        private DrawableHelper mHelper;
-        private DrawableCache mCache;
+        private ObjectHelper mHelper;
+        private ObjectCache mCache;
         private OkHttpClient mOkHttpClient;
         private Executor mDiskExecutor;
         private Executor mNetworkExecutor;
@@ -409,16 +408,16 @@ public class ConacoTask {
             return mUseNetwork;
         }
 
-        Builder setHelper(DrawableHelper helper) {
+        Builder setHelper(ObjectHelper helper) {
             mHelper = helper;
             return this;
         }
 
-        DrawableHelper getHelper() {
+        ObjectHelper getHelper() {
             return mHelper;
         }
 
-        Builder setCache(DrawableCache cache) {
+        Builder setCache(ObjectCache cache) {
             mCache = cache;
             return this;
         }

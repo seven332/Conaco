@@ -36,9 +36,9 @@ public interface Unikery {
     void onProgress(long singleReceivedSize, long receivedSize, long totalSize);
 
     /**
-     * @return Can use this drawable holder or not
+     * @return Can use this object holder or not
      */
-    boolean onGetDrawable(@NonNull DrawableHolder holder, Conaco.Source source);
+    boolean onGetObject(@NonNull ObjectHolder holder, Conaco.Source source);
 
     void onSetDrawable(Drawable drawable);
 
