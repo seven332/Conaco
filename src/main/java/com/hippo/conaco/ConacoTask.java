@@ -17,6 +17,8 @@
 package com.hippo.conaco;
 
 import android.os.AsyncTask;
+import android.support.annotation.Nullable;
+import android.support.annotation.UiThread;
 
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
@@ -72,19 +74,37 @@ public class ConacoTask {
         mConaco = builder.mConaco;
     }
 
-    private void onFinishe() {
-        if (!mStop) {
-            mConaco.removeTask(this);
-            Unikery unikery = mUnikeryWeakReference.get();
-            if (unikery != null) {
-                unikery.setTaskId(Unikery.INVAILD_ID);
-            }
-        } else  {
-            // It is done by Conaco
-        }
+    int getId() {
+        return mId;
     }
 
-    public void start() {
+    String getKey() {
+        return mKey;
+    }
+
+    boolean isUseMemoryCache() {
+        return mUseMemoryCache;
+    }
+
+    @Nullable
+    Unikery getUnikery() {
+        return mUnikeryWeakReference.get();
+    }
+
+    void clearUnikery() {
+        mUnikeryWeakReference.clear();
+    }
+
+    private void onFinishe() {
+        if (!mStop) {
+            mConaco.finishConacoTask(this);
+        }/* else  {
+            // It is done by Conaco
+        }*/
+    }
+
+    @UiThread
+    void start() {
         if (mStop || mStart) {
             return;
         }
@@ -99,38 +119,45 @@ public class ConacoTask {
                 return;
             } else if (mUseNetwork) {
                 unikery.onMiss(Conaco.Source.DISK);
-
+                unikery.onRequest();
                 mNetworkLoadTask = new NetworkLoadTask();
                 mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                 return;
+            } else {
+                unikery.onMiss(Conaco.Source.DISK);
+                unikery.onMiss(Conaco.Source.NETWORK);
+                unikery.onFailure();
             }
         }
 
         onFinishe();
     }
 
-    public void stop() {
+    @UiThread
+    void stop() {
         if (mStop) {
             return;
         }
 
         mStop = true;
 
-        Unikery unikery = mUnikeryWeakReference.get();
-        if (unikery != null && unikery.getTaskId() == mId) {
-
-            if (mDiskLoadTask != null) { // Getting from disk
-                mDiskLoadTask.cancel(false);
-            } else if (mNetworkLoadTask != null) { // Getting from network
-                mNetworkLoadTask.cancel(false);
-                if (mCall != null) {
-                    mCall.cancel();
-                    mCall = null;
-                }
+        // Stop jobs
+        if (mDiskLoadTask != null) { // Getting from disk
+            mDiskLoadTask.cancel(false);
+        } else if (mNetworkLoadTask != null) { // Getting from network
+            mNetworkLoadTask.cancel(false);
+            if (mCall != null) {
+                mCall.cancel();
+                mCall = null;
             }
+        }
 
+        Unikery unikery = mUnikeryWeakReference.get();
+        if (unikery != null) {
             unikery.onCancel();
         }
+
+        // Conaco handle the clean up
     }
 
     private boolean isNotNecessary(AsyncTask asyncTask) {
@@ -147,6 +174,7 @@ public class ConacoTask {
             } else {
                 ObjectHolder holder = null;
 
+                // First check data container
                 if (mDataContainer != null) {
                     InputStreamPipe isp = mDataContainer.get();
                     if (isp != null) {
@@ -157,6 +185,7 @@ public class ConacoTask {
                     }
                 }
 
+                // Then check disk cache
                 if (mKey != null) {
                     if (holder == null && mUseDiskCache) {
                         holder = mCache.getFromDisk(mKey);
@@ -174,10 +203,11 @@ public class ConacoTask {
 
         @Override
         protected void onPostExecute(ObjectHolder holder) {
+            mDiskLoadTask = null;
+
             if (isCancelled() || mStop) {
                 onCancelled(holder);
             } else {
-                mDiskLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
                     boolean getObject = false;
@@ -198,7 +228,6 @@ public class ConacoTask {
 
         @Override
         protected void onCancelled(ObjectHolder holder) {
-            mDiskLoadTask = null;
             onFinishe();
         }
     }
@@ -251,7 +280,8 @@ public class ConacoTask {
                         }
                         return holder;
                     } else {
-                        // TODO Remove bad data in disk cache
+                        // Maybe bad download, remove it from disk cache
+                        mCache.removeFromDisk(mKey);
                         return null;
                     }
                 } else if (mDataContainer != null) {
@@ -302,10 +332,11 @@ public class ConacoTask {
 
         @Override
         protected void onPostExecute(ObjectHolder holder) {
+            mNetworkLoadTask = null;
+
             if (isCancelled() || mStop) {
                 onCancelled(holder);
             } else {
-                mNetworkLoadTask = null;
                 Unikery unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
                     if (holder == null || !unikery.onGetObject(holder, Conaco.Source.NETWORK)) {
@@ -318,7 +349,6 @@ public class ConacoTask {
 
         @Override
         protected void onCancelled(ObjectHolder holder) {
-            mNetworkLoadTask = null;
             onFinishe();
         }
 

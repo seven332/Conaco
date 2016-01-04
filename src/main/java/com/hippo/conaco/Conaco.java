@@ -18,13 +18,13 @@ package com.hippo.conaco;
 
 import android.graphics.drawable.Drawable;
 import android.os.Process;
+import android.support.annotation.UiThread;
 import android.util.Log;
 
 import com.hippo.beerbelly.BeerBelly;
 import com.hippo.yorozuya.IdIntGenerator;
 import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
-import com.hippo.yorozuya.SafeSparseArray;
 import com.hippo.yorozuya.SerialThreadExecutor;
 import com.squareup.okhttp.OkHttpClient;
 
@@ -32,7 +32,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-// TODO Open a thread for disk cache
 public class Conaco {
 
     private static final String TAG = Conaco.class.getSimpleName();
@@ -41,7 +40,7 @@ public class Conaco {
     private ObjectCache mCache;
     private OkHttpClient mOkHttpClient;
 
-    private SafeSparseArray<ConacoTask> mLoadTaskMap;
+    private Register mRegister;
 
     private final SerialThreadExecutor mDiskTasExecutor;
     private final ThreadPoolExecutor mNetworkExecutor;
@@ -62,7 +61,7 @@ public class Conaco {
 
         mOkHttpClient = builder.okHttpClient;
 
-        mLoadTaskMap = new SafeSparseArray<>();
+        mRegister = new Register();
 
         mDiskTasExecutor = new SerialThreadExecutor(3000, new LinkedBlockingDeque<Runnable>(),
                 new PriorityThreadFactory("Conaco-Disk", Process.THREAD_PRIORITY_BACKGROUND));
@@ -78,66 +77,112 @@ public class Conaco {
         return mCache;
     }
 
+    @UiThread
+    private void onUnregisterConacoTask(ConacoTask task) {
+        ConacoTask next = mRegister.getByKey(task.getKey());
+        if (next != null) {
+            startConacoTask(next);
+        }
+    }
+
+    @UiThread
+    private void startConacoTask(ConacoTask task) {
+        Unikery unikery = task.getUnikery();
+
+        // Can't unikery is gone, finish the task now
+        if (unikery == null) {
+            finishConacoTask(task);
+            return;
+        }
+
+        String key = task.getKey();
+        ObjectHolder holder = null;
+
+        // Get from memory
+        if (key != null && task.isUseMemoryCache() && mHelper.useMemoryCache(key, null)) {
+            holder = mCache.getFromMemory(key);
+        }
+
+        if (holder == null || !unikery.onGetObject(holder, Source.MEMORY)) {
+            unikery.onMiss(Source.MEMORY);
+            task.start();
+        } else {
+            // Get the object, finish the task
+            finishConacoTask(task);
+        }
+    }
+
+    @UiThread
     public void load(ConacoTask.Builder builder) {
         OSUtils.checkMainLoop();
         builder.isValid();
 
         Unikery unikery = builder.getUnikery();
-        String key = builder.getKey();
 
+        // Cancel first
         cancel(unikery);
 
-        ObjectHolder holder = null;
+        // Build conaco task
+        int id = mIdGenerator.nextId();
+        unikery.setTaskId(id);
+        builder.setId(id);
+        builder.setHelper(mHelper);
+        builder.setCache(mCache);
+        builder.setOkHttpClient(mOkHttpClient);
+        builder.setDiskExecutor(mDiskTasExecutor);
+        builder.setNetworkExecutor(mNetworkExecutor);
+        builder.setConaco(this);
+        ConacoTask task = builder.build();
 
-        if (key != null && builder.isUseMemoryCache() && mHelper.useMemoryCache(key, null)) {
-            holder = mCache.getFromMemory(key);
-        }
-
-        if (holder == null || !unikery.onGetObject(holder, Source.MEMORY)) {
-            int id = mIdGenerator.nextId();
-            unikery.setTaskId(id);
-            unikery.onMiss(Source.MEMORY);
-            builder.setId(id);
-            builder.setHelper(mHelper);
-            builder.setCache(mCache);
-            builder.setOkHttpClient(mOkHttpClient);
-            builder.setDiskExecutor(mDiskTasExecutor);
-            builder.setNetworkExecutor(mNetworkExecutor);
-            builder.setConaco(this);
-            ConacoTask task = builder.build();
-            mLoadTaskMap.put(id, task);
-            task.start();
-        }
+        if (!mRegister.register(id, task)) {
+            startConacoTask(task);
+        }/* else {
+            // The key is repeated, wait
+        }*/
     }
 
+    @UiThread
     public void load(Unikery unikery, Drawable drawable) {
         OSUtils.checkMainLoop();
 
+        // Cancel first
         cancel(unikery);
+
         unikery.onSetDrawable(drawable);
     }
 
+    @UiThread
     public void cancel(Unikery unikery) {
         OSUtils.checkMainLoop();
 
         int id = unikery.getTaskId();
         if (id != Unikery.INVAILD_ID) {
-            ConacoTask task = mLoadTaskMap.get(id);
+            unikery.setTaskId(Unikery.INVAILD_ID);
+            ConacoTask task = mRegister.popById(id);
             if (task != null) {
                 task.stop();
-                mLoadTaskMap.remove(id);
+                // Don't need unikery anymore
+                task.clearUnikery();
+                // Callback
+                onUnregisterConacoTask(task);
             } else {
-                Log.e("TAG", "Conaco, an invalid id to cancel " + id);
+                Log.e(TAG, "Can't find conaco task by id " + id);
             }
-            unikery.setTaskId(Unikery.INVAILD_ID);
         }
     }
 
-    void removeTask(ConacoTask task) {
-        int index = mLoadTaskMap.indexOfValue(task);
-        if (index >= 0) {
-            mLoadTaskMap.removeAt(index);
+    /**
+     * Unregister task, reset unikery id, clear unikery in task, call next
+     */
+    void finishConacoTask(ConacoTask task) {
+        mRegister.unregister(task.getId());
+        Unikery unikery = task.getUnikery();
+        if (unikery != null) {
+            unikery.setTaskId(Unikery.INVAILD_ID);
         }
+        task.clearUnikery();
+
+        onUnregisterConacoTask(task);
     }
 
     public void clearMemoryCache() {
