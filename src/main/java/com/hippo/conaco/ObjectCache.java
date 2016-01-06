@@ -54,6 +54,11 @@ public class ObjectCache extends BeerBelly<ObjectHolder> {
     }
 
     @Override
+    protected boolean canBeRemoved(String key, ObjectHolder value) {
+        return value.isFree();
+    }
+
+    @Override
     protected ObjectHolder read(@NonNull InputStreamPipe isPipe) {
         Object object = mHelper.decode(isPipe);
         if (object != null) {

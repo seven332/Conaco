@@ -17,15 +17,20 @@
 package com.hippo.conaco;
 
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 
 public class ObjectHolder {
+
+    private static final String TAG = ObjectHolder.class.getSimpleName();
 
     @NonNull
     private final Object mObject;
 
-    private int mReference = 0;
+    private ArrayList<WeakReference<Object>> mReferenceList = new ArrayList<>(3);
 
     private boolean mInMemoryCache = false;
 
@@ -42,18 +47,46 @@ public class ObjectHolder {
         return mObject;
     }
 
-    public synchronized void obtain() {
-        mReference++;
+    public synchronized void obtain(Object reference) {
+        mReferenceList.add(new WeakReference<>(reference));
     }
 
-    public synchronized void release() {
-        if (mReference != 0) {
-            mReference--;
+    public synchronized void release(Object reference) {
+        ArrayList<WeakReference<Object>> list = mReferenceList;
+        for (int i = 0, size = list.size(); i < size; i++) {
+            WeakReference<Object> ref = list.get(i);
+            Object obj = ref.get();
+            if (obj == null) {
+                // The reference is invalid, remove it
+                list.remove(i);
+                i--;
+                size--;
+            } else if (reference == obj) {
+                // It is the reference, remove it
+                list.remove(i);
+                return;
+            }
         }
+
+        Log.w(TAG, "Can't find the reference " + reference);
     }
 
     public synchronized boolean isFree() {
-        return mReference == 0;
+        ArrayList<WeakReference<Object>> list = mReferenceList;
+
+        // Remove all invalid reference
+        for (int i = 0, size = list.size(); i < size; i++) {
+            WeakReference<Object> ref = list.get(i);
+            Object obj = ref.get();
+            if (obj == null) {
+                // The reference is invalid, remove it
+                list.remove(i);
+                i--;
+                size--;
+            }
+        }
+
+        return list.isEmpty();
     }
 
     void setInMemoryCache(boolean inMemoryCache) {
