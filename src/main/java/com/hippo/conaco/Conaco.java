@@ -117,6 +117,9 @@ public class Conaco {
         OSUtils.checkMainLoop();
         builder.isValid();
 
+        Log.d(TAG, "Key " + builder.getKey());
+        Log.d(TAG, "Url " + builder.getUrl());
+
         Unikery unikery = builder.getUnikery();
 
         // Cancel first

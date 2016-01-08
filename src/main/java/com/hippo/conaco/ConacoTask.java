@@ -406,6 +406,10 @@ public class ConacoTask {
             return this;
         }
 
+        public String getUrl() {
+            return mUrl;
+        }
+
         public Builder setDataContainer(DataContainer dataContainer) {
             mDataContainer = dataContainer;
             return this;
