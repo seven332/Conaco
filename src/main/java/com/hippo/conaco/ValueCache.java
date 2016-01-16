@@ -25,28 +25,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class ObjectCache extends BeerBelly<ObjectHolder> {
+public class ValueCache<V> extends BeerBelly<ValueHolder<V>> {
 
-    private ObjectHelper mHelper;
+    private ValueHelper<V> mHelper;
 
-    public ObjectCache(BeerBelly.BeerBellyParams params, ObjectHelper helper) {
+    public ValueCache(BeerBelly.BeerBellyParams params, ValueHelper<V> helper) {
         super(params);
         mHelper = helper;
     }
 
     @Override
-    protected int sizeOf(String key, ObjectHolder value) {
-        return mHelper.sizeOf(key, value.getObject());
+    protected int sizeOf(String key, ValueHolder<V> value) {
+        return mHelper.sizeOf(key, value.getValue());
     }
 
     @Override
-    protected void memoryEntryAdded(ObjectHolder value) {
+    protected void memoryEntryAdded(ValueHolder<V> value) {
         value.setInMemoryCache(true);
     }
 
     @Override
     protected void memoryEntryRemoved(boolean evicted, String key,
-            ObjectHolder oldValue, ObjectHolder newValue) {
+            ValueHolder<V> oldValue, ValueHolder<V> newValue) {
         if (oldValue != null) {
             oldValue.setInMemoryCache(false);
             mHelper.onRemove(key, oldValue);
@@ -54,22 +54,22 @@ public class ObjectCache extends BeerBelly<ObjectHolder> {
     }
 
     @Override
-    protected boolean canBeRemoved(String key, ObjectHolder value) {
+    protected boolean canBeRemoved(String key, ValueHolder<V> value) {
         return value.isFree();
     }
 
     @Override
-    protected ObjectHolder read(@NonNull InputStreamPipe isPipe) {
-        Object object = mHelper.decode(isPipe);
-        if (object != null) {
-            return new ObjectHolder(object);
+    protected ValueHolder<V> read(@NonNull InputStreamPipe isPipe) {
+        V value = mHelper.decode(isPipe);
+        if (value != null) {
+            return new ValueHolder<>(value);
         } else {
             return null;
         }
     }
 
     @Override
-    protected boolean write(OutputStream os, ObjectHolder value) {
+    protected boolean write(OutputStream os, ValueHolder<V> value) {
         ProgressNotify notify = value.notify;
         long length = value.length;
         InputStream is = value.is;

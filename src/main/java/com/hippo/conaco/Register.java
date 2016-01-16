@@ -18,21 +18,21 @@ package com.hippo.conaco;
 
 import android.util.SparseArray;
 
-class Register {
+class Register<V> {
 
-    private SparseArray<ConacoTask> mConacoTaskMap = new SparseArray<>();
+    private SparseArray<ConacoTask<V>> mConacoTaskMap = new SparseArray<>();
 
     /**
      * @return true for the key is registered
      */
-    public synchronized boolean register(int id, ConacoTask task) {
+    public synchronized boolean register(int id, ConacoTask<V> task) {
         boolean repeatedKey = false;
         String taskKey = task.getKey();
 
         if (taskKey != null) {
             // Check repeated key
             for (int i = 0, size = mConacoTaskMap.size(); i < size; i++) {
-                ConacoTask ct = mConacoTaskMap.valueAt(i);
+                ConacoTask<V> ct = mConacoTaskMap.valueAt(i);
                 if (taskKey.equals(ct.getKey())) {
                     repeatedKey = true;
                     break;
@@ -50,12 +50,12 @@ class Register {
         mConacoTaskMap.remove(id);
     }
 
-    public synchronized ConacoTask getByKey(String key) {
+    public synchronized ConacoTask<V> getByKey(String key) {
         if (key == null) {
             return null;
         }
         for (int i = 0, size = mConacoTaskMap.size(); i < size; i++) {
-            ConacoTask ct = mConacoTaskMap.valueAt(i);
+            ConacoTask<V> ct = mConacoTaskMap.valueAt(i);
             if (key.equals(ct.getKey())) {
                 return ct;
             }
@@ -63,10 +63,10 @@ class Register {
         return null;
     }
 
-    public synchronized ConacoTask popById(int id) {
+    public synchronized ConacoTask<V> popById(int id) {
         int index = mConacoTaskMap.indexOfKey(id);
         if (index >= 0) {
-            ConacoTask task = mConacoTaskMap.valueAt(index);
+            ConacoTask<V> task = mConacoTaskMap.valueAt(index);
             mConacoTaskMap.removeAt(index);
             return task;
         } else {

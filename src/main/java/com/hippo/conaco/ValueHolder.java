@@ -23,12 +23,12 @@ import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
-public class ObjectHolder {
+public class ValueHolder<V> {
 
-    private static final String TAG = ObjectHolder.class.getSimpleName();
+    private static final String TAG = ValueHolder.class.getSimpleName();
 
     @NonNull
-    private final Object mObject;
+    private final V mValue;
 
     private ArrayList<WeakReference<Object>> mReferenceList = new ArrayList<>(3);
 
@@ -39,12 +39,12 @@ public class ObjectHolder {
     long length;
     ProgressNotify notify;
 
-    public ObjectHolder(@NonNull Object object) {
-        mObject = object;
+    public ValueHolder(@NonNull V value) {
+        mValue = value;
     }
 
-    public @NonNull Object getObject() {
-        return mObject;
+    public @NonNull V getValue() {
+        return mValue;
     }
 
     public synchronized void obtain(Object reference) {

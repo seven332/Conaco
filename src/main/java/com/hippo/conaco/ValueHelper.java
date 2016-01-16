@@ -21,14 +21,14 @@ import android.support.annotation.Nullable;
 
 import com.hippo.yorozuya.io.InputStreamPipe;
 
-public interface ObjectHelper {
+public interface ValueHelper<V> {
 
     @Nullable
-    Object decode(@NonNull InputStreamPipe isPipe);
+    V decode(@NonNull InputStreamPipe isPipe);
 
-    int sizeOf(@NonNull String key, @NonNull Object value);
+    int sizeOf(@NonNull String key, @NonNull V value);
 
-    void onRemove(@NonNull String key, @NonNull ObjectHolder oldValue);
+    void onRemove(@NonNull String key, @NonNull ValueHolder<V> oldValue);
 
-    boolean useMemoryCache(@NonNull String key, ObjectHolder holder);
+    boolean useMemoryCache(@NonNull String key, ValueHolder<V> holder);
 }

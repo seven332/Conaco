@@ -21,7 +21,7 @@ import android.support.annotation.NonNull;
 
 import com.hippo.yorozuya.IdIntGenerator;
 
-public interface Unikery {
+public interface Unikery<V> {
 
     int INVAILD_ID = IdIntGenerator.INVAILD_ID;
 
@@ -38,7 +38,7 @@ public interface Unikery {
     /**
      * @return Can use this object holder or not
      */
-    boolean onGetObject(@NonNull ObjectHolder holder, Conaco.Source source);
+    boolean onGetObject(@NonNull ValueHolder<V> holder, Conaco.Source source);
 
     void onSetDrawable(Drawable drawable);
 
