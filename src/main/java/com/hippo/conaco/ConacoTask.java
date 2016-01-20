@@ -22,17 +22,18 @@ import android.support.annotation.UiThread;
 
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.io.InputStreamPipe;
-import com.squareup.okhttp.Call;
-import com.squareup.okhttp.HttpUrl;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-import com.squareup.okhttp.ResponseBody;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Executor;
+
+import okhttp3.Call;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class ConacoTask<V> {
 
@@ -295,8 +296,8 @@ public class ConacoTask<V> {
                     }
 
                     // Check url Moved
-                    HttpUrl requestHttpUrl = request.httpUrl();
-                    HttpUrl responseHttpUrl = response.request().httpUrl();
+                    HttpUrl requestHttpUrl = request.url();
+                    HttpUrl responseHttpUrl = response.request().url();
                     if (!responseHttpUrl.equals(requestHttpUrl)) {
                         mDataContainer.onUrlMoved(mUrl, responseHttpUrl.url().toString());
                     }

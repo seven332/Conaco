@@ -26,7 +26,7 @@ import com.hippo.yorozuya.IdIntGenerator;
 import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SerialThreadExecutor;
-import com.squareup.okhttp.OkHttpClient;
+import okhttp3.OkHttpClient;
 
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
