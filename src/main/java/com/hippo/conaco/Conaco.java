@@ -26,11 +26,12 @@ import com.hippo.yorozuya.IdIntGenerator;
 import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SerialThreadExecutor;
-import okhttp3.OkHttpClient;
 
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import okhttp3.OkHttpClient;
 
 public class Conaco<V> {
 
@@ -117,8 +118,10 @@ public class Conaco<V> {
         OSUtils.checkMainLoop();
         builder.isValid();
 
-        Log.d(TAG, "Key " + builder.getKey());
-        Log.d(TAG, "Url " + builder.getUrl());
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Key " + builder.getKey());
+            Log.d(TAG, "Url " + builder.getUrl());
+        }
 
         Unikery<V> unikery = builder.getUnikery();
 
