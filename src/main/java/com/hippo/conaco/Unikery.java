@@ -19,11 +19,11 @@ package com.hippo.conaco;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 
-import com.hippo.yorozuya.IdIntGenerator;
+import com.hippo.yorozuya.IntIdGenerator;
 
 public interface Unikery<V> {
 
-    int INVAILD_ID = IdIntGenerator.INVAILD_ID;
+    int INVALID_ID = IntIdGenerator.INVALID_ID;
 
     void setTaskId(int id);
 

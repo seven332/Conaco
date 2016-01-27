@@ -22,7 +22,7 @@ import android.support.annotation.UiThread;
 import android.util.Log;
 
 import com.hippo.beerbelly.BeerBelly;
-import com.hippo.yorozuya.IdIntGenerator;
+import com.hippo.yorozuya.IntIdGenerator;
 import com.hippo.yorozuya.OSUtils;
 import com.hippo.yorozuya.PriorityThreadFactory;
 import com.hippo.yorozuya.SerialThreadExecutor;
@@ -46,7 +46,7 @@ public class Conaco<V> {
     private final SerialThreadExecutor mDiskTasExecutor;
     private final ThreadPoolExecutor mNetworkExecutor;
 
-    private final IdIntGenerator mIdGenerator;
+    private final IntIdGenerator mIdGenerator;
 
     private Conaco(Builder<V> builder) {
         mHelper = builder.objectHelper;
@@ -71,7 +71,7 @@ public class Conaco<V> {
                 new LinkedBlockingDeque<Runnable>(),
                 new PriorityThreadFactory("Conaco-Network", Process.THREAD_PRIORITY_BACKGROUND));
 
-        mIdGenerator = new IdIntGenerator();
+        mIdGenerator = new IntIdGenerator();
     }
 
     public BeerBelly getBeerBelly() {
@@ -162,8 +162,8 @@ public class Conaco<V> {
         OSUtils.checkMainLoop();
 
         int id = unikery.getTaskId();
-        if (id != Unikery.INVAILD_ID) {
-            unikery.setTaskId(Unikery.INVAILD_ID);
+        if (id != Unikery.INVALID_ID) {
+            unikery.setTaskId(Unikery.INVALID_ID);
             ConacoTask<V> task = mRegister.popById(id);
             if (task != null) {
                 task.stop();
@@ -184,7 +184,7 @@ public class Conaco<V> {
         mRegister.unregister(task.getId());
         Unikery unikery = task.getUnikery();
         if (unikery != null) {
-            unikery.setTaskId(Unikery.INVAILD_ID);
+            unikery.setTaskId(Unikery.INVALID_ID);
         }
         task.clearUnikery();
 
