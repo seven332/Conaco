@@ -250,10 +250,11 @@ public class ConacoTask<V> {
 
             ValueHolder<V> holder;
             InputStream is = null;
-            // Load it from internet
-            Request request = new Request.Builder().url(mUrl).build();
-            mCall = mOkHttpClient.newCall(request);
             try {
+                // Load it from internet
+                Request request = new Request.Builder().url(mUrl).build();
+                mCall = mOkHttpClient.newCall(request);
+
                 Response response = mCall.execute();
                 is = response.body().byteStream();
 
