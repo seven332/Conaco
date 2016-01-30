@@ -48,6 +48,8 @@ public class Conaco<V> {
 
     private final IntIdGenerator mIdGenerator;
 
+    private final boolean DEBUG;
+
     private Conaco(Builder<V> builder) {
         mHelper = builder.objectHelper;
 
@@ -72,6 +74,8 @@ public class Conaco<V> {
                 new PriorityThreadFactory("Conaco-Network", Process.THREAD_PRIORITY_BACKGROUND));
 
         mIdGenerator = new IntIdGenerator();
+
+        DEBUG = builder.debug;
     }
 
     public BeerBelly getBeerBelly() {
@@ -118,7 +122,7 @@ public class Conaco<V> {
         OSUtils.checkMainLoop();
         builder.isValid();
 
-        if (BuildConfig.DEBUG) {
+        if (DEBUG) {
             Log.d(TAG, "Key " + builder.getKey());
             Log.d(TAG, "Url " + builder.getUrl());
         }
@@ -223,6 +227,8 @@ public class Conaco<V> {
          * Decode, get size and others
          */
         public ValueHelper<T> objectHelper = null;
+
+        public boolean debug = BuildConfig.DEBUG;
 
         @Override
         public void isVaild() throws IllegalStateException {

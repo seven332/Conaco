@@ -96,7 +96,7 @@ public class ConacoTask<V> {
         mUnikeryWeakReference.clear();
     }
 
-    private void onFinishe() {
+    private void onFinish() {
         if (!mStop) {
             mConaco.finishConacoTask(this);
         }/* else  {
@@ -131,7 +131,7 @@ public class ConacoTask<V> {
             }
         }
 
-        onFinishe();
+        onFinish();
     }
 
     @UiThread
@@ -223,13 +223,13 @@ public class ConacoTask<V> {
                         unikery.onFailure();
                     }
                 }
-                onFinishe();
+                onFinish();
             }
         }
 
         @Override
         protected void onCancelled(ValueHolder<V> holder) {
-            onFinishe();
+            onFinish();
         }
     }
 
@@ -345,13 +345,13 @@ public class ConacoTask<V> {
                         unikery.onFailure();
                     }
                 }
-                onFinishe();
+                onFinish();
             }
         }
 
         @Override
         protected void onCancelled(ValueHolder<V> holder) {
-            onFinishe();
+            onFinish();
         }
 
         @Override
