@@ -146,9 +146,10 @@ public class Conaco<V> {
 
         if (!mRegister.register(id, task)) {
             startConacoTask(task);
-        }/* else {
+        } else {
             // The key is repeated, wait
-        }*/
+            unikery.onSetDrawable(null); // TODO Is it cool?
+        }
     }
 
     @UiThread
