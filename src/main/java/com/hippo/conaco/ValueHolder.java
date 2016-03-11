@@ -30,7 +30,7 @@ public class ValueHolder<V> {
     @NonNull
     private final V mValue;
 
-    private ArrayList<WeakReference<Object>> mReferenceList = new ArrayList<>(3);
+    private final ArrayList<WeakReference<Object>> mReferenceList = new ArrayList<>(3);
 
     private boolean mInMemoryCache = false;
 

@@ -232,8 +232,8 @@ public class Conaco<V> {
         public boolean debug = BuildConfig.DEBUG;
 
         @Override
-        public void isVaild() throws IllegalStateException {
-            super.isVaild();
+        public void isValid() throws IllegalStateException {
+            super.isValid();
 
             if (okHttpClient == null) {
                 throw new IllegalStateException("No http client? How can I load image via url?");
@@ -241,7 +241,7 @@ public class Conaco<V> {
         }
 
         public Conaco<T> build() {
-            isVaild();
+            isValid();
             return new Conaco<>(this);
         }
     }
