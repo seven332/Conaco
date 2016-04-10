@@ -20,7 +20,7 @@ import android.util.SparseArray;
 
 class Register<V> {
 
-    private SparseArray<ConacoTask<V>> mConacoTaskMap = new SparseArray<>();
+    private final SparseArray<ConacoTask<V>> mConacoTaskMap = new SparseArray<>();
 
     /**
      * @return true for the key is registered

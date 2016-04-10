@@ -27,7 +27,7 @@ import java.io.OutputStream;
 
 public class ValueCache<V> extends BeerBelly<ValueHolder<V>> {
 
-    private ValueHelper<V> mHelper;
+    private final ValueHelper<V> mHelper;
 
     public ValueCache(BeerBelly.BeerBellyParams params, ValueHelper<V> helper) {
         super(params);
@@ -51,11 +51,6 @@ public class ValueCache<V> extends BeerBelly<ValueHolder<V>> {
             oldValue.setInMemoryCache(false);
             mHelper.onRemove(key, oldValue);
         }
-    }
-
-    @Override
-    protected boolean canBeRemoved(String key, ValueHolder<V> value) {
-        return value.isFree();
     }
 
     @Override
