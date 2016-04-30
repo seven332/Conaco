@@ -38,7 +38,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
-class ConacoTask<V> {
+public class ConacoTask<V> {
 
     private final int mId;
     private final WeakReference<Unikery<V>> mUnikeryWeakReference;
