@@ -16,7 +16,7 @@
 
 package com.hippo.conaco;
 
-interface ProgressNotifier {
+public interface ProgressNotifier {
 
     void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize);
 }
