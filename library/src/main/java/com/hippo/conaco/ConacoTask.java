@@ -19,6 +19,7 @@ package com.hippo.conaco;
 import android.os.AsyncTask;
 import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
+import android.util.Log;
 
 import com.hippo.beerbelly.SimpleDiskCache;
 import com.hippo.streampipe.InputStreamPipe;
@@ -39,6 +40,8 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 public class ConacoTask<V> {
+
+    private static final String TAG = ConacoTask.class.getSimpleName();
 
     private final int mId;
     private final WeakReference<Unikery<V>> mUnikeryWeakReference;
@@ -169,6 +172,42 @@ public class ConacoTask<V> {
         return mStop || asyncTask.isCancelled() || unikery == null || unikery.getTaskId() != mId;
     }
 
+    private static void putFromDiskCacheToDataContainer(String key, ValueCache cache, DataContainer container) {
+        SimpleDiskCache diskCache = cache.getDiskCache();
+        if (diskCache != null) {
+            InputStreamPipe pipe = diskCache.getInputStreamPipe(key);
+            if (pipe != null) {
+                try {
+                    pipe.obtain();
+                    container.save(pipe.open(), -1L, null, null);
+                } catch (IOException e) {
+                    Log.d(TAG, "Can't save value from disk cache to data container");
+                    e.printStackTrace();
+                    container.remove();
+                } finally {
+                    pipe.close();
+                    pipe.release();
+                }
+            }
+        }
+    }
+
+    private static void putFromDataContainerToDiskCache(String key, ValueCache cache, DataContainer container) {
+        InputStreamPipe pipe = container.get();
+        if (pipe != null) {
+            try {
+                pipe.obtain();
+                cache.putRawToDisk(key, pipe.open());
+            } catch (IOException e) {
+                Log.w(TAG, "Can't save value from data container to disk cache", e);
+                cache.removeFromDisk(key);
+            } finally {
+                pipe.close();
+                pipe.release();
+            }
+        }
+    }
+
     private class DiskLoadTask extends AsyncTask<Void, Void, V> {
 
         @Override
@@ -190,6 +229,10 @@ public class ConacoTask<V> {
                 if (mKey != null) {
                     if (value == null && mUseDiskCache) {
                         value = mCache.getFromDisk(mKey);
+                        // Put back to data container
+                        if (value != null && mDataContainer != null) {
+                            putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
+                        }
                     }
 
                     if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
@@ -233,7 +276,7 @@ public class ConacoTask<V> {
         }
     }
 
-    public class NetworkLoadTask extends AsyncTask<Void, Long, V> implements ProgressNotifier {
+    private class NetworkLoadTask extends AsyncTask<Void, Long, V> implements ProgressNotifier {
 
         @Override
         public void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize) {
@@ -343,16 +386,20 @@ public class ConacoTask<V> {
                     value = mHelper.decode(isp);
                     if (value == null) {
                         mDataContainer.remove();
-                    } else if (mKey != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
-                        // Put it to memory
-                        mCache.putToMemory(mKey, value);
+                    } else if (mKey != null) {
+                        // Put to disk cache
+                        putFromDataContainerToDiskCache(mKey, mCache, mDataContainer);
+
+                        if (mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
+                            // Put it to memory
+                            mCache.putToMemory(mKey, value);
+                        }
                     }
                     return value;
                 } else {
                     return null;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 return null;
             } finally {
                 mCall = null;

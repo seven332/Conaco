@@ -16,6 +16,8 @@
 
 package com.hippo.conaco;
 
+import android.support.annotation.Nullable;
+
 import com.hippo.streampipe.InputStreamPipe;
 
 import java.io.InputStream;
@@ -30,11 +32,12 @@ public interface DataContainer {
     /**
      * Save the {@code InputStream}
      */
-    boolean save(InputStream is, long length, String mediaType, ProgressNotifier notify);
+    boolean save(InputStream is, long length, @Nullable String mediaType, @Nullable ProgressNotifier notify);
 
     /**
      * Get {@code InputStreamPipe} for saved before
      */
+    @Nullable
     InputStreamPipe get();
 
     /**
