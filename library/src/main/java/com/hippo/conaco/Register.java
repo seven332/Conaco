@@ -53,6 +53,10 @@ class Register<V> {
         return task;
     }
 
+    public synchronized boolean contain(int id) {
+        return mIdMap.indexOfKey(id) >= 0;
+    }
+
     public synchronized ConacoTask<V> getByKey(String key) {
         if (key == null) {
             return null;

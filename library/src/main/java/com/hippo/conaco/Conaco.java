@@ -176,6 +176,11 @@ public class Conaco<V> {
         }
     }
 
+    public boolean isLoading(Unikery<V> unikery) {
+        int id = unikery.getTaskId();
+        return id != Unikery.INVALID_ID && mRegister.contain(id);
+    }
+
     /**
      * Unregister task, reset unikery id, clear unikery in task, call next
      */
