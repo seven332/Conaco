@@ -218,7 +218,7 @@ public class ConacoTask<V> {
                 V value = null;
 
                 // First check data container
-                if (mDataContainer != null) {
+                if (mDataContainer != null && mDataContainer.isEnabled()) {
                     InputStreamPipe isp = mDataContainer.get();
                     if (isp != null) {
                         value = mHelper.decode(isp);
@@ -230,7 +230,7 @@ public class ConacoTask<V> {
                     if (value == null && mUseDiskCache) {
                         value = mCache.getFromDisk(mKey);
                         // Put back to data container
-                        if (value != null && mDataContainer != null) {
+                        if (value != null && mDataContainer != null && mDataContainer.isEnabled()) {
                             putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
                         }
                     }
@@ -348,7 +348,7 @@ public class ConacoTask<V> {
                     return null;
                 }
 
-                if (mDataContainer == null && mKey != null) {
+                if ((mDataContainer == null || !mDataContainer.isEnabled()) && mKey != null) {
                     if (putToDiskCache(is, body.contentLength())) {
                         // Get object from disk cache
                         value = mCache.getFromDisk(mKey);
@@ -365,7 +365,7 @@ public class ConacoTask<V> {
                         mCache.removeFromDisk(mKey);
                         return null;
                     }
-                } else if (mDataContainer != null) {
+                } else if (mDataContainer != null && mDataContainer.isEnabled()) {
                     // Check url Moved
                     HttpUrl requestHttpUrl = request.url();
                     HttpUrl responseHttpUrl = response.request().url();

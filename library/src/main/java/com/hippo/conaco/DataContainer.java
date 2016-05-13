@@ -25,6 +25,11 @@ import java.io.InputStream;
 public interface DataContainer {
 
     /**
+     * Returns the enabled status for this DataContainer.
+     */
+    boolean isEnabled();
+
+    /**
      * Get 304 or something like that
      */
     void onUrlMoved(String requestUrl, String responseUrl);
