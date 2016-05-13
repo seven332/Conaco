@@ -54,14 +54,3 @@ artifacts {
     archives sourcesJar
     archives javadocJar
 }
-
-android.libraryVariants.all { variant ->
-    def name = variant.buildType.name
-    def task = project.tasks.create "jar${name.capitalize()}", Jar
-    task.dependsOn variant.javaCompile
-    task.from variant.javaCompile.destinationDir
-    task.exclude '**/BuildConfig.class'
-    task.exclude '**/R.class'
-    task.exclude '**/R$*.class'
-    artifacts.add('archives', task);
-}
