@@ -206,7 +206,7 @@ public class Conaco<V> {
          */
         public ValueHelper<T> objectHelper = null;
 
-        public boolean debug = BuildConfig.DEBUG;
+        public boolean debug = false;
 
         @Override
         public void isValid() throws IllegalStateException {
