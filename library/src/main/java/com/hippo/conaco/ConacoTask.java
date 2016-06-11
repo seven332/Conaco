@@ -39,7 +39,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
-public class ConacoTask<V> {
+public final class ConacoTask<V> {
 
     private static final String TAG = ConacoTask.class.getSimpleName();
 
@@ -48,9 +48,9 @@ public class ConacoTask<V> {
     private final String mKey;
     private final String mUrl;
     private final DataContainer mDataContainer;
-    private boolean mUseMemoryCache;
-    private boolean mUseDiskCache;
-    private boolean mUseNetwork;
+    private final boolean mUseMemoryCache;
+    private final boolean mUseDiskCache;
+    private final boolean mUseNetwork;
     private final ValueHelper<V> mHelper;
     private final ValueCache<V> mCache;
     private final OkHttpClient mOkHttpClient;
@@ -337,7 +337,11 @@ public class ConacoTask<V> {
             InputStream is = null;
             try {
                 // Load it from internet
-                Request request = new Request.Builder().url(mUrl).build();
+                Request.Builder builder = new Request.Builder().url(mUrl);
+                if (mConaco.mUserAgent != null) {
+                    builder.addHeader("User-Agent", mConaco.mUserAgent);
+                }
+                Request request = builder.build();
                 mCall = mOkHttpClient.newCall(request);
 
                 Response response = mCall.execute();

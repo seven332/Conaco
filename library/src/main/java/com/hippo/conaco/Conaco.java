@@ -56,6 +56,8 @@ public final class Conaco<V> {
     private final ThreadPoolExecutor mNetworkExecutor;
     private final AtomicInteger mIdGenerator;
 
+    final String mUserAgent;
+
     private final boolean mDebug;
 
     private Conaco(Builder<V> builder) {
@@ -81,6 +83,7 @@ public final class Conaco<V> {
 
         mIdGenerator = new AtomicInteger();
 
+        mUserAgent = builder.userAgent;
         mDebug = builder.debug;
     }
 
@@ -204,6 +207,8 @@ public final class Conaco<V> {
          * Decode, get size and others
          */
         public ValueHelper<T> objectHelper = null;
+
+        public String userAgent;
 
         public boolean debug = false;
 
