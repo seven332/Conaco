@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.OkHttpClient;
 
-public class Conaco<V> {
+public final class Conaco<V> {
 
     private static final String TAG = Conaco.class.getSimpleName();
 
@@ -47,11 +47,10 @@ public class Conaco<V> {
     public static final int SOURCE_DISK = 1;
     public static final int SOURCE_NETWORK = 2;
 
-    private ValueHelper<V> mHelper;
-    private ValueCache<V> mCache;
-    private OkHttpClient mOkHttpClient;
-
-    private Register<V> mRegister;
+    private final ValueHelper<V> mHelper;
+    private final ValueCache<V> mCache;
+    private final OkHttpClient mOkHttpClient;
+    private final Register<V> mRegister;
 
     private final SerialThreadExecutor mDiskExecutor;
     private final ThreadPoolExecutor mNetworkExecutor;
