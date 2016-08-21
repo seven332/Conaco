@@ -27,9 +27,9 @@ class Register<V> {
     private final Multimap<String, ConacoTask<V>> mKeyMap = Multimap.create();
 
     /**
-     * @return true for the key is already registered
+     * Return true for the key is already registered.
      */
-    public synchronized boolean register(int id, ConacoTask<V> task) {
+    public boolean register(int id, ConacoTask<V> task) {
         boolean repeatedKey = false;
         String taskKey = task.getKey();
 
@@ -45,7 +45,7 @@ class Register<V> {
         return repeatedKey;
     }
 
-    public synchronized ConacoTask<V> unregister(int id) {
+    public ConacoTask<V> unregister(int id) {
         ConacoTask<V> task = mIdMap.remove(id);
         if (task != null) {
             mKeyMap.removeElement(task.getKey(), task);
@@ -53,11 +53,11 @@ class Register<V> {
         return task;
     }
 
-    public synchronized boolean contain(int id) {
+    public boolean contain(int id) {
         return mIdMap.indexOfKey(id) >= 0;
     }
 
-    public synchronized ConacoTask<V> getByKey(String key) {
+    public ConacoTask<V> getByKey(String key) {
         if (key == null) {
             return null;
         }
