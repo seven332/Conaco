@@ -52,18 +52,15 @@ public interface Unikery<V> {
     void onProgress(long singleReceivedSize, long receivedSize, long totalSize);
 
     /**
-     * On start to wait because repeated key
+     * There is already one Unikery with the same key
+     * loading when try to load this Unikery.
      */
     void onWait();
 
     /**
-     * On get the value
-     *
-     * @return {@code true} for the {@code Unikery} accepts the value
-     *          and the task ends. {@code false} for the {@code Unikery}
-     *          reject the value and the task goes on or failed
+     * Called when get value.
      */
-    boolean onGetValue(@NonNull V value, @Conaco.Source int source);
+    void onGetValue(@NonNull V value, @Conaco.Source int source);
 
     /**
      * On failed to get value

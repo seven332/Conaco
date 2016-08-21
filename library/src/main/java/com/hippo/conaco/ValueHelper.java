@@ -40,16 +40,17 @@ public interface ValueHelper<V> {
     /**
      * Called when the object added to memory cache
      */
-    void onAddToMemoryCache(@NonNull V oldValue);
+    void onAddToMemoryCache(@NonNull String key, @NonNull V value);
 
     /**
      * Called when the object removed from memory cache
      */
-    void onRemoveFromMemoryCache(@NonNull String key, @NonNull V oldValue);
+    void onRemoveFromMemoryCache(@NonNull String key, @NonNull V value);
 
     /**
      * Use cache memory or not. Sometimes large object
      * should not be stored in memory cache.
+     * value null for read, value non-null for write.
      */
-    boolean useMemoryCache(@NonNull String key, V holder);
+    boolean useMemoryCache(@NonNull String key, @Nullable V value);
 }

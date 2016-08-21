@@ -17,8 +17,8 @@
 package com.hippo.conaco;
 
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.annotation.UiThread;
 import android.util.Log;
 
 import com.hippo.beerbelly.SimpleDiskCache;
@@ -30,6 +30,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.Call;
 import okhttp3.HttpUrl;
@@ -60,25 +62,27 @@ public class ConacoTask<V> {
 
     private DiskLoadTask mDiskLoadTask;
     private NetworkLoadTask mNetworkLoadTask;
-    private Call mCall;
+    @NonNull
+    private AtomicReference<Call> mCall = new AtomicReference<>();
     private boolean mStart;
-    private volatile boolean mStop;
+    @NonNull
+    private AtomicBoolean mStop = new AtomicBoolean();
 
     private ConacoTask(Builder<V> builder) {
-        mId = builder.mId;
-        mUnikeryWeakReference = new WeakReference<>(builder.mUnikery);
-        mKey = builder.mKey;
-        mUrl = builder.mUrl;
-        mDataContainer = builder.mDataContainer;
-        mUseMemoryCache = builder.mUseMemoryCache;
-        mUseDiskCache = builder.mUseDiskCache;
-        mUseNetwork = builder.mUseNetwork;
-        mHelper = builder.mHelper;
-        mCache = builder.mCache;
-        mOkHttpClient = builder.mOkHttpClient;
-        mDiskExecutor = builder.mDiskExecutor;
-        mNetworkExecutor = builder.mNetworkExecutor;
-        mConaco = builder.mConaco;
+        mId = builder.id;
+        mUnikeryWeakReference = new WeakReference<>(builder.unikery);
+        mKey = builder.key;
+        mUrl = builder.url;
+        mDataContainer = builder.dataContainer;
+        mUseMemoryCache = builder.useMemoryCache;
+        mUseDiskCache = builder.useDiskCache;
+        mUseNetwork = builder.useNetwork;
+        mHelper = builder.helper;
+        mCache = builder.cache;
+        mOkHttpClient = builder.okHttpClient;
+        mDiskExecutor = builder.diskExecutor;
+        mNetworkExecutor = builder.networkExecutor;
+        mConaco = builder.conaco;
     }
 
     int getId() {
@@ -102,17 +106,18 @@ public class ConacoTask<V> {
         mUnikeryWeakReference.clear();
     }
 
+    // Ui thread
     private void onFinish() {
-        if (!mStop) {
+        if (!mStop.get()) {
             mConaco.finishConacoTask(this);
         }/* else  {
             // It is done by Conaco
         }*/
     }
 
-    @UiThread
+    // Ui thread
     void start() {
-        if (mStop || mStart) {
+        if (mStop.get() || mStart) {
             return;
         }
 
@@ -120,17 +125,12 @@ public class ConacoTask<V> {
 
         Unikery unikery = mUnikeryWeakReference.get();
         if (unikery != null && unikery.getTaskId() == mId) {
-            if (mUseDiskCache) {
+            if ((mUseDiskCache && mKey != null) || mDataContainer != null) {
                 mDiskLoadTask = new DiskLoadTask();
                 mDiskLoadTask.executeOnExecutor(mDiskExecutor);
                 return;
-            } else if (mUseNetwork) {
-                unikery.onMiss(Conaco.SOURCE_DISK);
-                unikery.onRequest();
-                mNetworkLoadTask = new NetworkLoadTask();
-                mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
-                return;
             } else {
+                // No disk support, no network support
                 unikery.onMiss(Conaco.SOURCE_DISK);
                 unikery.onMiss(Conaco.SOURCE_NETWORK);
                 unikery.onFailure();
@@ -140,22 +140,23 @@ public class ConacoTask<V> {
         onFinish();
     }
 
-    @UiThread
+    // Ui thread
     void stop() {
-        if (mStop) {
+        if (mStop.get()) {
             return;
         }
 
-        mStop = true;
+        mStop.lazySet(true);
 
         // Stop jobs
         if (mDiskLoadTask != null) { // Getting from disk
             mDiskLoadTask.cancel(false);
         } else if (mNetworkLoadTask != null) { // Getting from network
             mNetworkLoadTask.cancel(false);
-            if (mCall != null) {
-                mCall.cancel();
-                mCall = null;
+            Call call = mCall.get();
+            if (call != null) {
+                call.cancel();
+                mCall.lazySet(null);
             }
         }
 
@@ -169,10 +170,10 @@ public class ConacoTask<V> {
 
     private boolean isNotNecessary(AsyncTask asyncTask) {
         Unikery unikery = mUnikeryWeakReference.get();
-        return mStop || asyncTask.isCancelled() || unikery == null || unikery.getTaskId() != mId;
+        return mStop.get() || asyncTask.isCancelled() || unikery == null || unikery.getTaskId() != mId;
     }
 
-    private static void putFromDiskCacheToDataContainer(String key, ValueCache cache, DataContainer container) {
+    private void putFromDiskCacheToDataContainer(String key, ValueCache cache, DataContainer container) {
         SimpleDiskCache diskCache = cache.getDiskCache();
         if (diskCache != null) {
             InputStreamPipe pipe = diskCache.getInputStreamPipe(key);
@@ -181,8 +182,9 @@ public class ConacoTask<V> {
                     pipe.obtain();
                     container.save(pipe.open(), -1L, null, null);
                 } catch (IOException e) {
-                    Log.d(TAG, "Can't save value from disk cache to data container");
-                    e.printStackTrace();
+                    if (mConaco.mDebug) {
+                        Log.e(TAG, "Can't save value from disk cache to data container", e);
+                    }
                     container.remove();
                 } finally {
                     pipe.close();
@@ -192,14 +194,16 @@ public class ConacoTask<V> {
         }
     }
 
-    private static void putFromDataContainerToDiskCache(String key, ValueCache cache, DataContainer container) {
+    private void putFromDataContainerToDiskCache(String key, ValueCache cache, DataContainer container) {
         InputStreamPipe pipe = container.get();
         if (pipe != null) {
             try {
                 pipe.obtain();
-                cache.putRawToDisk(key, pipe.open());
+                cache.pushRawToDisk(key, pipe.open());
             } catch (IOException e) {
-                Log.w(TAG, "Can't save value from data container to disk cache", e);
+                if (mConaco.mDebug) {
+                    Log.w(TAG, "Can't save value from data container to disk cache", e);
+                }
                 cache.removeFromDisk(key);
             } finally {
                 pipe.close();
@@ -226,18 +230,11 @@ public class ConacoTask<V> {
                 }
 
                 // Then check disk cache
-                if (mKey != null) {
-                    if (value == null && mUseDiskCache) {
-                        value = mCache.getFromDisk(mKey);
-                        // Put back to data container
-                        if (value != null && mDataContainer != null && mDataContainer.isEnabled()) {
-                            putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
-                        }
-                    }
-
-                    if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
-                        // Put it to memory
-                        mCache.putToMemory(mKey, value);
+                if (value == null && mUseDiskCache && mKey != null) {
+                    value = mCache.getFromDisk(mKey);
+                    // Put back to data container
+                    if (value != null && mDataContainer != null && mDataContainer.isEnabled()) {
+                        putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
                     }
                 }
 
@@ -249,24 +246,34 @@ public class ConacoTask<V> {
         protected void onPostExecute(V value) {
             mDiskLoadTask = null;
 
-            if (isCancelled() || mStop) {
+            // Put value to memory cache
+            if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
+                mCache.putToMemory(mKey, value);
+            }
+
+            if (isCancelled() || mStop.get()) {
                 onCancelled(value);
             } else {
                 Unikery<V> unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
-                    boolean getValue = false;
-                    if ((value == null || !(getValue = unikery.onGetValue(value, Conaco.SOURCE_DISK))) && mUseNetwork) {
+                    if (value != null) {
+                        // Get the value
+                        unikery.onGetValue(value, Conaco.SOURCE_DISK);
+                        onFinish();
+                    } else if (mUseNetwork && mUrl != null &&
+                            ((mUseDiskCache && mKey != null) || mDataContainer != null)) {
+                        // Try to get value from network
                         unikery.onMiss(Conaco.SOURCE_DISK);
                         unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
-                        return;
-                    } else if (!getValue) {
+                    } else {
+                        // Failed
                         unikery.onMiss(Conaco.SOURCE_DISK);
                         unikery.onFailure();
+                        onFinish();
                     }
                 }
-                onFinish();
             }
         }
 
@@ -308,6 +315,9 @@ public class ConacoTask<V> {
 
                 return true;
             } catch (IOException e) {
+                if (mConaco.mDebug) {
+                    Log.e(TAG, "Failed to write to disk cache", e);
+                }
                 return false;
             } finally {
                 pipe.close();
@@ -338,9 +348,10 @@ public class ConacoTask<V> {
             try {
                 // Load it from internet
                 Request request = new Request.Builder().url(mUrl).build();
-                mCall = mOkHttpClient.newCall(request);
+                Call call = mOkHttpClient.newCall(request);
+                mCall.lazySet(call);
 
-                Response response = mCall.execute();
+                Response response = call.execute();
                 ResponseBody body = response.body();
                 is = body.byteStream();
 
@@ -348,24 +359,7 @@ public class ConacoTask<V> {
                     return null;
                 }
 
-                if ((mDataContainer == null || !mDataContainer.isEnabled()) && mKey != null) {
-                    if (putToDiskCache(is, body.contentLength())) {
-                        // Get object from disk cache
-                        value = mCache.getFromDisk(mKey);
-                        if (value == null) {
-                            // Maybe bad download, remove it from disk cache
-                            mCache.removeFromDisk(mKey);
-                        } else if (mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
-                            // Put it to memory
-                            mCache.putToMemory(mKey, value);
-                        }
-                        return value;
-                    } else {
-                        // Maybe bad download, remove it from disk cache
-                        mCache.removeFromDisk(mKey);
-                        return null;
-                    }
-                } else if (mDataContainer != null && mDataContainer.isEnabled()) {
+                if (mDataContainer != null && mDataContainer.isEnabled()) {
                     // Check url Moved
                     HttpUrl requestHttpUrl = request.url();
                     HttpUrl responseHttpUrl = response.request().url();
@@ -375,6 +369,7 @@ public class ConacoTask<V> {
 
                     // Put to data container
                     if (!putToDataContainer(is, body)) {
+                        mDataContainer.remove();
                         return null;
                     }
 
@@ -386,23 +381,35 @@ public class ConacoTask<V> {
                     value = mHelper.decode(isp);
                     if (value == null) {
                         mDataContainer.remove();
-                    } else if (mKey != null) {
+                    } else if (mUseDiskCache && mKey != null) {
                         // Put to disk cache
                         putFromDataContainerToDiskCache(mKey, mCache, mDataContainer);
-
-                        if (mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
-                            // Put it to memory
-                            mCache.putToMemory(mKey, value);
-                        }
                     }
                     return value;
+                } else if (mUseDiskCache && mKey != null) {
+                    if (putToDiskCache(is, body.contentLength())) {
+                        // Get object from disk cache
+                        value = mCache.getFromDisk(mKey);
+                        if (value == null) {
+                            // Maybe bad download, remove it from disk cache
+                            mCache.removeFromDisk(mKey);
+                        }
+                        return value;
+                    } else {
+                        // Maybe bad download, remove it from disk cache
+                        mCache.removeFromDisk(mKey);
+                        return null;
+                    }
                 } else {
                     return null;
                 }
             } catch (Exception e) {
+                if (mConaco.mDebug) {
+                    e.printStackTrace();
+                }
                 return null;
             } finally {
-                mCall = null;
+                mCall.lazySet(null);
                 try {
                     if (is != null) {
                         is.close();
@@ -414,15 +421,22 @@ public class ConacoTask<V> {
         }
 
         @Override
-        protected void onPostExecute(V holder) {
+        protected void onPostExecute(V value) {
             mNetworkLoadTask = null;
 
-            if (isCancelled() || mStop) {
-                onCancelled(holder);
+            // Put value to memory cache
+            if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
+                mCache.putToMemory(mKey, value);
+            }
+
+            if (isCancelled() || mStop.get()) {
+                onCancelled(value);
             } else {
                 Unikery<V> unikery = mUnikeryWeakReference.get();
                 if (unikery != null && unikery.getTaskId() == mId) {
-                    if (holder == null || !unikery.onGetValue(holder, Conaco.SOURCE_NETWORK)) {
+                    if (value != null) {
+                        unikery.onGetValue(value, Conaco.SOURCE_NETWORK);
+                    } else {
                         unikery.onFailure();
                     }
                 }
@@ -438,7 +452,7 @@ public class ConacoTask<V> {
         @Override
         protected void onProgressUpdate(Long... values) {
             Unikery unikery = mUnikeryWeakReference.get();
-            if (!mStop && !isCancelled() && unikery != null && unikery.getTaskId() == mId) {
+            if (!mStop.get() && !isCancelled() && unikery != null && unikery.getTaskId() == mId) {
                 unikery.onProgress(values[0], values[1], values[2]);
             }
         }
@@ -446,124 +460,26 @@ public class ConacoTask<V> {
 
     public static class Builder<T> {
 
-        private int mId;
-        private Unikery<T> mUnikery;
-        private String mKey;
-        private String mUrl;
-        private DataContainer mDataContainer;
-        private boolean mUseMemoryCache = true;
-        private boolean mUseDiskCache = true;
-        private boolean mUseNetwork = true;
-        private ValueHelper<T> mHelper;
-        private ValueCache<T> mCache;
-        private OkHttpClient mOkHttpClient;
-        private Executor mDiskExecutor;
-        private Executor mNetworkExecutor;
-        private Conaco<T> mConaco;
-
-        public Builder<T> setId(int id) {
-            mId = id;
-            return this;
-        }
-
-        public Builder<T> setUnikery(Unikery<T> unikery) {
-            mUnikery = unikery;
-            return this;
-        }
-
-        public Unikery<T> getUnikery() {
-            return mUnikery;
-        }
-
-        public Builder<T> setKey(String key) {
-            mKey = key;
-            return this;
-        }
-
-        public String getKey() {
-            return mKey;
-        }
-
-        public Builder<T> setUrl(String url) {
-            mUrl = url;
-            return this;
-        }
-
-        public String getUrl() {
-            return mUrl;
-        }
-
-        public Builder<T> setDataContainer(DataContainer dataContainer) {
-            mDataContainer = dataContainer;
-            return this;
-        }
-
-        public Builder<T> setUseMemoryCache(boolean useMemoryCache) {
-            mUseMemoryCache = useMemoryCache;
-            return this;
-        }
-
-        boolean isUseMemoryCache() {
-            return mUseMemoryCache;
-        }
-
-        public Builder<T> setUseDiskCache(boolean useDiskCache) {
-            mUseDiskCache = useDiskCache;
-            return this;
-        }
-
-        boolean isUseDiskCache() {
-            return mUseDiskCache;
-        }
-
-        public Builder<T> setUseNetwork(boolean useNetwork) {
-            mUseNetwork = useNetwork;
-            return this;
-        }
-
-        boolean isUseNetwork() {
-            return mUseNetwork;
-        }
-
-        Builder<T> setHelper(ValueHelper<T> helper) {
-            mHelper = helper;
-            return this;
-        }
-
-        ValueHelper<T> getHelper() {
-            return mHelper;
-        }
-
-        Builder<T> setCache(ValueCache<T> cache) {
-            mCache = cache;
-            return this;
-        }
-
-        Builder<T> setOkHttpClient(OkHttpClient okHttpClient) {
-            mOkHttpClient = okHttpClient;
-            return this;
-        }
-
-        Builder<T> setDiskExecutor(Executor diskExecutor) {
-            mDiskExecutor = diskExecutor;
-            return this;
-        }
-
-        Builder<T> setNetworkExecutor(Executor networkExecutor) {
-            mNetworkExecutor = networkExecutor;
-            return this;
-        }
-
-        Builder<T> setConaco(Conaco<T> conaco) {
-            mConaco = conaco;
-            return this;
-        }
+        int id;
+        Conaco<T> conaco;
+        public Unikery<T> unikery;
+        public String key;
+        public String url;
+        public DataContainer dataContainer;
+        public boolean useMemoryCache = true;
+        public boolean useDiskCache = true;
+        public boolean useNetwork = true;
+        public ValueHelper<T> helper;
+        public ValueCache<T> cache;
+        public OkHttpClient okHttpClient;
+        public Executor diskExecutor;
+        public Executor networkExecutor;
 
         public void isValid() {
-            if (mUnikery == null) {
+            if (unikery == null) {
                 throw new IllegalStateException("Must set unikery");
             }
-            if (mKey == null && mUrl == null && mDataContainer == null) {
+            if (key == null && url == null && dataContainer == null) {
                 throw new IllegalStateException("At least one of mKey and mUrl and mDataContainer have to not be null");
             }
         }

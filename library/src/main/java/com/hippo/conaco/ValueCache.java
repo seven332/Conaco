@@ -38,8 +38,8 @@ class ValueCache<V> extends BeerBelly<V> {
     }
 
     @Override
-    protected void memoryEntryAdded(V value) {
-        mHelper.onAddToMemoryCache(value);
+    protected void memoryEntryAdded(String key, V value) {
+        mHelper.onAddToMemoryCache(key, value);
     }
 
     @Override
