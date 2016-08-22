@@ -59,7 +59,7 @@ public class Conaco<V> {
     boolean mDebug;
 
     private Conaco(Builder<V> builder) {
-        mHelper = builder.objectHelper;
+        mHelper = builder.valueHelper;
 
         BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
         beerBellyParams.hasMemoryCache = builder.hasMemoryCache;
@@ -234,7 +234,7 @@ public class Conaco<V> {
         /**
          * Decode, get size and others
          */
-        public ValueHelper<T> objectHelper = null;
+        public ValueHelper<T> valueHelper = null;
 
         public boolean debug = false;
 
