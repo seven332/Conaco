@@ -264,12 +264,12 @@ public class ConacoTask<V> {
                             ((mUseDiskCache && mKey != null) || mDataContainer != null)) {
                         // Try to get value from network
                         unikery.onMiss(Conaco.SOURCE_DISK);
-                        unikery.onRequest();
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                     } else {
                         // Failed
                         unikery.onMiss(Conaco.SOURCE_DISK);
+                        unikery.onMiss(Conaco.SOURCE_NETWORK);
                         unikery.onFailure();
                         onFinish();
                     }
@@ -437,6 +437,7 @@ public class ConacoTask<V> {
                     if (value != null) {
                         unikery.onGetValue(value, Conaco.SOURCE_NETWORK);
                     } else {
+                        unikery.onMiss(Conaco.SOURCE_NETWORK);
                         unikery.onFailure();
                     }
                 }

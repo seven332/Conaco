@@ -18,36 +18,34 @@ package com.hippo.conaco;
 
 import android.support.annotation.NonNull;
 
+/**
+ * The receiver of Conaco. All methods called in UI thread except {@link #getTaskId()}.
+ */
 public interface Unikery<V> {
 
     int INVALID_ID = -1;
 
     /**
-     * Store the conaco task id
+     * Store the conaco task id.
      *
      * @param id the conaco task id
      */
     void setTaskId(int id);
 
     /**
-     * Get the conaco task id
+     * Get the conaco task id.
      *
      * @return the conaco task id
      */
     int getTaskId();
 
     /**
-     * On miss in the source
+     * On miss in the source.
      */
     void onMiss(@Conaco.Source int source);
 
     /**
-     * On start http request
-     */
-    void onRequest();
-
-    /**
-     * On http request progress
+     * On http request progress.
      */
     void onProgress(long singleReceivedSize, long receivedSize, long totalSize);
 
@@ -63,12 +61,12 @@ public interface Unikery<V> {
     void onGetValue(@NonNull V value, @Conaco.Source int source);
 
     /**
-     * On failed to get value
+     * On failed to get value.
      */
     void onFailure();
 
     /**
-     * On user cancel the conaco task
+     * On user cancel the conaco task.
      */
     void onCancel();
 }
