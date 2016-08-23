@@ -60,6 +60,8 @@ public class ConacoTask<V> {
     private final Executor mNetworkExecutor;
     private final Conaco<V> mConaco;
 
+    private boolean mDiskMiss;
+
     private DiskLoadTask mDiskLoadTask;
     private NetworkLoadTask mNetworkLoadTask;
     @NonNull
@@ -131,6 +133,7 @@ public class ConacoTask<V> {
                 return;
             } else {
                 // No disk support, no network support
+                mDiskMiss = true;
                 unikery.onMiss(Conaco.SOURCE_DISK);
                 unikery.onMiss(Conaco.SOURCE_NETWORK);
                 unikery.onFailure();
@@ -162,6 +165,12 @@ public class ConacoTask<V> {
 
         Unikery unikery = mUnikeryWeakReference.get();
         if (unikery != null) {
+            // Id of unikery has been set to invalid in Conaco.cancel(),
+            // so no need to worry callback called twice.
+            if (!mDiskMiss) {
+                unikery.onMiss(Conaco.SOURCE_DISK);
+            }
+            unikery.onMiss(Conaco.SOURCE_MEMORY);
             unikery.onCancel();
         }
 
@@ -263,11 +272,13 @@ public class ConacoTask<V> {
                     } else if (mUseNetwork && mUrl != null &&
                             ((mUseDiskCache && mKey != null) || mDataContainer != null)) {
                         // Try to get value from network
+                        mDiskMiss = true;
                         unikery.onMiss(Conaco.SOURCE_DISK);
                         mNetworkLoadTask = new NetworkLoadTask();
                         mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
                     } else {
                         // Failed
+                        mDiskMiss = true;
                         unikery.onMiss(Conaco.SOURCE_DISK);
                         unikery.onMiss(Conaco.SOURCE_NETWORK);
                         unikery.onFailure();
