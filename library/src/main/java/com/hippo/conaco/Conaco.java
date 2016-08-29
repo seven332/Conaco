@@ -60,15 +60,7 @@ public class Conaco<V> {
 
     private Conaco(Builder<V> builder) {
         mHelper = builder.valueHelper;
-
-        BeerBelly.BeerBellyParams beerBellyParams = new BeerBelly.BeerBellyParams();
-        beerBellyParams.hasMemoryCache = builder.hasMemoryCache;
-        beerBellyParams.memoryCacheMaxSize = builder.memoryCacheMaxSize;
-        beerBellyParams.hasDiskCache = builder.hasDiskCache;
-        beerBellyParams.diskCacheDir = builder.diskCacheDir;
-        beerBellyParams.diskCacheMaxSize = builder.diskCacheMaxSize;
-
-        mCache = new ValueCache<>(beerBellyParams, mHelper);
+        mCache = new ValueCache<>(builder, mHelper);
         mOkHttpClient = builder.okHttpClient;
 
         mRegister = new Register<>();
