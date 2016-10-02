@@ -90,6 +90,9 @@ public class Conaco<V> {
         return mDebug;
     }
 
+    /**
+     * Don't use memory in non-UI thread!!!
+     */
     public BeerBelly getBeerBelly() {
         return mCache;
     }
@@ -216,8 +219,12 @@ public class Conaco<V> {
 
     /**
      * A builder to create Conaco.
+     * <p>
+     * For Conaco, memory cache is only accessed is UI thread,
+     * so it is safe to use non-thread-safe memory cache.
      */
     public static class Builder<T> extends BeerBelly.BeerBellyParams {
+
         /**
          * The client to get image from internet
          */
