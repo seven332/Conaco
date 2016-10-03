@@ -18,6 +18,8 @@ package com.hippo.conaco;
 
 import android.support.annotation.NonNull;
 
+import com.hippo.streampipe.InputStreamPipe;
+
 /**
  * The receiver of Conaco. All methods called in UI thread except {@link #getTaskId()}.
  */
@@ -59,6 +61,11 @@ public interface Unikery<V> {
      * Called when get value.
      */
     void onGetValue(@NonNull V value, @Conaco.Source int source);
+
+    /**
+     * Called when get pipe.
+     */
+    void onGetPipe(@NonNull InputStreamPipe pipe);
 
     /**
      * On failed to get value.

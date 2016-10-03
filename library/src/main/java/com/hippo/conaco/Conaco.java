@@ -114,22 +114,28 @@ public class Conaco<V> {
             return;
         }
 
-        String key = task.getKey();
-        V value = null;
-
-        // Get from memory
-        if (key != null && task.useMemoryCache() && mHelper.useMemoryCache(key, null)) {
-            value = mCache.getFromMemory(key);
-        }
-
-        if (value != null) {
-            // Get the object, finish the task
-            unikery.onGetValue(value, SOURCE_MEMORY);
-            finishConacoTask(task);
-        } else {
-            // Can't get value from memory cache, start the task
+        if (task.skipDecode()) {
+            // We need InputStreamPipe, no need to check memory cache
             unikery.onMiss(SOURCE_MEMORY);
             task.start();
+        } else {
+            String key = task.getKey();
+            V value = null;
+
+            // Get from memory
+            if (key != null && task.useMemoryCache() && mHelper.useMemoryCache(key, null)) {
+                value = mCache.getFromMemory(key);
+            }
+
+            if (value != null) {
+                // Get the object, finish the task
+                unikery.onGetValue(value, SOURCE_MEMORY);
+                finishConacoTask(task);
+            } else {
+                // Can't get value from memory cache, start the task
+                unikery.onMiss(SOURCE_MEMORY);
+                task.start();
+            }
         }
     }
 

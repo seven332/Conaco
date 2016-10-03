@@ -53,6 +53,7 @@ public class ConacoTask<V> {
     private boolean mUseMemoryCache;
     private boolean mUseDiskCache;
     private boolean mUseNetwork;
+    private boolean mSkipDecode;
     private final ValueHelper<V> mHelper;
     private final ValueCache<V> mCache;
     private final OkHttpClient mOkHttpClient;
@@ -79,6 +80,7 @@ public class ConacoTask<V> {
         mUseMemoryCache = builder.useMemoryCache;
         mUseDiskCache = builder.useDiskCache;
         mUseNetwork = builder.useNetwork;
+        mSkipDecode = builder.skipDecode;
         mHelper = builder.helper;
         mCache = builder.cache;
         mOkHttpClient = builder.okHttpClient;
@@ -97,6 +99,10 @@ public class ConacoTask<V> {
 
     boolean useMemoryCache() {
         return mUseMemoryCache;
+    }
+
+    boolean skipDecode() {
+        return mSkipDecode;
     }
 
     @Nullable
@@ -221,40 +227,63 @@ public class ConacoTask<V> {
         }
     }
 
-    private class DiskLoadTask extends AsyncTask<Void, Void, V> {
+    private class DiskLoadTask extends AsyncTask<Void, Void, Object> {
 
-        @Override
-        protected V doInBackground(Void... params) {
-            if (isNotNecessary(this)) {
-                return null;
-            } else {
-                V value = null;
+        private V getValue() {
+            V value = null;
 
-                // First check data container
-                if (mDataContainer != null && mDataContainer.isEnabled()) {
-                    InputStreamPipe isp = mDataContainer.get();
-                    if (isp != null) {
-                        value = mHelper.decode(isp);
-                    }
+            // First check data container
+            if (mDataContainer != null && mDataContainer.isEnabled()) {
+                InputStreamPipe isp = mDataContainer.get();
+                if (isp != null) {
+                    value = mHelper.decode(isp);
                 }
-
-                // Then check disk cache
-                if (value == null && mUseDiskCache && mKey != null) {
-                    value = mCache.getFromDisk(mKey);
-                    // Put back to data container
-                    if (value != null && mDataContainer != null && mDataContainer.isEnabled()) {
-                        putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
-                    }
-                }
-
-                return value;
             }
+
+            // Then check disk cache
+            if (value == null && mUseDiskCache && mKey != null) {
+                value = mCache.getFromDisk(mKey);
+                // Put back to data container
+                if (value != null && mDataContainer != null && mDataContainer.isEnabled()) {
+                    putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
+                }
+            }
+
+            return value;
+        }
+
+        private InputStreamPipe getPipe() {
+            InputStreamPipe isp = null;
+
+            // First check data container
+            if (mDataContainer != null && mDataContainer.isEnabled()) {
+                isp = mDataContainer.get();
+            }
+
+            // Then check disk cache
+            if (isp == null && mUseDiskCache && mKey != null && mCache.hasDiskCache()) {
+                isp = mCache.getDiskCache().getInputStreamPipe(mKey);
+                // Put back to data container
+                if (isp != null && mDataContainer != null && mDataContainer.isEnabled()) {
+                    putFromDiskCacheToDataContainer(mKey, mCache, mDataContainer);
+                }
+            }
+
+            return isp;
         }
 
         @Override
-        protected void onPostExecute(V value) {
-            mDiskLoadTask = null;
+        protected Object doInBackground(Void... params) {
+            if (isNotNecessary(this)) {
+                return null;
+            } else if (mSkipDecode) {
+                return getPipe();
+            } else {
+                return getValue();
+            }
+        }
 
+        private void postValue(V value) {
             // Put value to memory cache
             if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
                 mCache.putToMemory(mKey, value);
@@ -288,13 +317,52 @@ public class ConacoTask<V> {
             }
         }
 
+        private void postPipe(InputStreamPipe pipe) {
+            if (isCancelled() || mStop.get()) {
+                onCancelled(pipe);
+            } else {
+                Unikery<V> unikery = mUnikeryWeakReference.get();
+                if (unikery != null && unikery.getTaskId() == mId) {
+                    if (pipe != null) {
+                        // Get the pipe
+                        unikery.onGetPipe(pipe);
+                        onFinish();
+                    } else if (mUseNetwork && mUrl != null &&
+                            ((mUseDiskCache && mKey != null) || mDataContainer != null)) {
+                        // Try to get value from network
+                        mDiskMiss = true;
+                        unikery.onMiss(Conaco.SOURCE_DISK);
+                        mNetworkLoadTask = new NetworkLoadTask();
+                        mNetworkLoadTask.executeOnExecutor(mNetworkExecutor);
+                    } else {
+                        // Failed
+                        mDiskMiss = true;
+                        unikery.onMiss(Conaco.SOURCE_DISK);
+                        unikery.onMiss(Conaco.SOURCE_NETWORK);
+                        unikery.onFailure();
+                        onFinish();
+                    }
+                }
+            }
+        }
+
         @Override
-        protected void onCancelled(V holder) {
+        protected void onPostExecute(Object obj) {
+            mDiskLoadTask = null;
+            if (mSkipDecode) {
+                postPipe((InputStreamPipe) obj);
+            } else {
+                postValue((V) obj);
+            }
+        }
+
+        @Override
+        protected void onCancelled(Object obj) {
             onFinish();
         }
     }
 
-    private class NetworkLoadTask extends AsyncTask<Void, Long, V> implements ProgressNotifier {
+    private class NetworkLoadTask extends AsyncTask<Void, Long, Object> implements ProgressNotifier {
 
         @Override
         public void notifyProgress(long singleReceivedSize, long receivedSize, long totalSize) {
@@ -349,12 +417,11 @@ public class ConacoTask<V> {
         }
 
         @Override
-        protected V doInBackground(Void... params) {
+        protected Object doInBackground(Void... params) {
             if (isNotNecessary(this)) {
                 return null;
             }
 
-            V value;
             InputStream is = null;
             try {
                 // Load it from internet
@@ -389,23 +456,36 @@ public class ConacoTask<V> {
                     if (isp == null) {
                         return null;
                     }
-                    value = mHelper.decode(isp);
-                    if (value == null) {
-                        mDataContainer.remove();
-                    } else if (mUseDiskCache && mKey != null) {
-                        // Put to disk cache
-                        putFromDataContainerToDiskCache(mKey, mCache, mDataContainer);
-                    }
-                    return value;
-                } else if (mUseDiskCache && mKey != null) {
-                    if (putToDiskCache(is, body.contentLength())) {
-                        // Get object from disk cache
-                        value = mCache.getFromDisk(mKey);
+
+                    if (mSkipDecode) {
+                        // Need InputStreamPipe
+                        return isp;
+                    } else {
+                        // Need value
+                        V value = mHelper.decode(isp);
                         if (value == null) {
-                            // Maybe bad download, remove it from disk cache
-                            mCache.removeFromDisk(mKey);
+                            mDataContainer.remove();
+                        } else if (mUseDiskCache && mKey != null) {
+                            // Put to disk cache
+                            putFromDataContainerToDiskCache(mKey, mCache, mDataContainer);
                         }
                         return value;
+                    }
+                } else if (mUseDiskCache && mKey != null) {
+                    if (putToDiskCache(is, body.contentLength())) {
+                        if (mSkipDecode) {
+                            // Need InputStreamPipe
+                            return mCache.getDiskCache().getInputStreamPipe(mKey);
+                        } else {
+                            // Need value
+                            // Get object from disk cache
+                            V value = mCache.getFromDisk(mKey);
+                            if (value == null) {
+                                // Maybe bad download, remove it from disk cache
+                                mCache.removeFromDisk(mKey);
+                            }
+                            return value;
+                        }
                     } else {
                         // Maybe bad download, remove it from disk cache
                         mCache.removeFromDisk(mKey);
@@ -431,10 +511,7 @@ public class ConacoTask<V> {
             }
         }
 
-        @Override
-        protected void onPostExecute(V value) {
-            mNetworkLoadTask = null;
-
+        private void postValue(V value) {
             // Put value to memory cache
             if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
                 mCache.putToMemory(mKey, value);
@@ -456,8 +533,35 @@ public class ConacoTask<V> {
             }
         }
 
+        private void postPipe(InputStreamPipe pipe) {
+            if (isCancelled() || mStop.get()) {
+                onCancelled(pipe);
+            } else {
+                Unikery<V> unikery = mUnikeryWeakReference.get();
+                if (unikery != null && unikery.getTaskId() == mId) {
+                    if (pipe != null) {
+                        unikery.onGetPipe(pipe);
+                    } else {
+                        unikery.onMiss(Conaco.SOURCE_NETWORK);
+                        unikery.onFailure();
+                    }
+                }
+                onFinish();
+            }
+        }
+
         @Override
-        protected void onCancelled(V value) {
+        protected void onPostExecute(Object obj) {
+            mNetworkLoadTask = null;
+            if (mSkipDecode) {
+                postPipe((InputStreamPipe) obj);
+            } else {
+                postValue((V) obj);
+            }
+        }
+
+        @Override
+        protected void onCancelled(Object value) {
             onFinish();
         }
 
@@ -481,6 +585,12 @@ public class ConacoTask<V> {
         public boolean useMemoryCache = true;
         public boolean useDiskCache = true;
         public boolean useNetwork = true;
+        /**
+         * {@code false} for call {@link Unikery#onGetValue(Object, int)},
+         * {@code true} for call {@link Unikery#onGetPipe(InputStreamPipe)}.
+         * Default value is false.
+         */
+        public boolean skipDecode;
         public ValueHelper<T> helper;
         public ValueCache<T> cache;
         public OkHttpClient okHttpClient;
