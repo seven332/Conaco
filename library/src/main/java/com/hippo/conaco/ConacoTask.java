@@ -285,7 +285,7 @@ public class ConacoTask<V> {
 
         private void postValue(V value) {
             // Put value to memory cache
-            if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
+            if (value != null && mKey != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
                 mCache.putToMemory(mKey, value);
             }
 
@@ -513,7 +513,7 @@ public class ConacoTask<V> {
 
         private void postValue(V value) {
             // Put value to memory cache
-            if (value != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
+            if (value != null && mKey != null && mUseMemoryCache && mHelper.useMemoryCache(mKey, value)) {
                 mCache.putToMemory(mKey, value);
             }
 
