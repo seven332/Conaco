@@ -23,6 +23,6 @@ dependencies {
     compile project(':beerbelly')
     compile project(':yorozuya')
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:support-annotations:25.0.0'
+    compile 'com.android.support:support-annotations:25.0.1'
     compile 'com.github.seven332:okhttp:3.4.2'
 }
