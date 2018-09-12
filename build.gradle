@@ -1,12 +1,11 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.0"
+    compileSdkVersion 27
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 25
+        targetSdkVersion 27
         versionCode 1
         versionName "1.0"
     }
@@ -20,9 +19,9 @@ android {
 }
 
 dependencies {
-    compile project(':beerbelly')
-    compile project(':yorozuya')
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:support-annotations:25.0.1'
-    compile 'com.github.seven332:okhttp:3.4.2'
+    implementation project(':beerbelly')
+    implementation project(':yorozuya')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.android.support:support-annotations:27.1.1'
+    implementation 'com.squareup.okhttp3:okhttp:3.11.0'
 }
