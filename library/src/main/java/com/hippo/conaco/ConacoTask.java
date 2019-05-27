@@ -336,6 +336,8 @@ public final class ConacoTask<V> {
             V value;
             InputStream is = null;
             try {
+                Log.d("TAG", "Conaco " + mUrl);
+
                 // Load it from internet
                 Request.Builder builder = new Request.Builder().url(mUrl);
                 if (mConaco.mUserAgent != null) {
