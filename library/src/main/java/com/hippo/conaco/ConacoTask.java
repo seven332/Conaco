@@ -404,6 +404,7 @@ public final class ConacoTask<V> {
                     return null;
                 }
             } catch (Exception e) {
+                e.printStackTrace();
                 return null;
             } finally {
                 mCall = null;
